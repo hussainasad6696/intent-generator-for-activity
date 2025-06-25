@@ -183,7 +183,7 @@ class IntentProcessor(
                                 standardProps = standardProps,
                                 nonNullableParams = nonNullableParams,
                                 nullableParams = nullableParams,
-//                                paramAnnotations = paramAnnotations
+                                paramAnnotations = paramAnnotations
                             )
                         )
                         .build()
@@ -206,7 +206,8 @@ class IntentProcessor(
         intentClassName: String,
         standardProps: List<Pair<String, TypeName>>,
         nonNullableParams: List<Pair<String, TypeName>>,
-        nullableParams: List<Pair<String, TypeName>>
+        nullableParams: List<Pair<String, TypeName>>,
+        paramAnnotations: List<KSAnnotation>
     ): CodeBlock {
         return CodeBlock.builder().apply {
             addStatement("val intent = intent ?: activity.get()?.intent")
@@ -215,30 +216,55 @@ class IntentProcessor(
             add("return %L(\n", intentClassName)
 
             val primaryParams = standardProps + nonNullableParams
-
             primaryParams.forEach { (name, type) ->
                 when {
                     name == "activity" -> addStatement("    %L = activity,", name)
                     type == BOOLEAN -> addStatement("    %L = intent?.getBooleanExtra(%S, false) == true,", name, name)
                     type == INT -> addStatement("    %L = intent?.getIntExtra(%S, 0) ?: 0,", name, name)
-                    type.isNullable -> addStatement("    %L = null,", name) // nullable params go to secondary constructor
                     else -> addStatement("    %L = intent?.getSerializableExtra(%S) as? %T ?: error(%S),", name, name, type, "Missing required param $name")
                 }
             }
 
             add(").apply {\n")
 
-            // Nullable params assigned inside apply block
-            nullableParams.forEach { (name, type) ->
-                val key = name // You might want to customize the intent key names if needed
-                when {
-                    type.copy(nullable = false) == STRING.copy(nullable = false) -> addStatement("    this.%L = intent?.getStringExtra(%S)", name, key)
-                    type.copy(nullable = false) == BOOLEAN.copy(nullable = false) -> addStatement("    this.%L = intent?.getBooleanExtra(%S, false)", name, key)
-                    type.copy(nullable = false) == INT.copy(nullable = false) -> addStatement("    this.%L = intent?.getIntExtra(%S, 0)", name, key)
-                    else -> addStatement(
-                        "    %L = intent?.getSerializableExtra(%S) as? %T ?: error(%S)",
-                        name, name, type, "Missing required param $name"
-                    )
+            // Nullable params
+            paramAnnotations.forEach { annotation ->
+                val name = annotation.getString("name")
+                val ksType = annotation.getKSType("type")
+                val ksTypeArg = annotation.getKSType("typeArg")
+                val isNullable = annotation.getBoolean("isNullable") ?: true
+                val kotlinType = ksType.toTypeName().copy(nullable = isNullable)
+
+                fun selectGetExtraMethod(): String {
+                    val qualifiedName = ksTypeArg.declaration.qualifiedName?.asString()
+                    val typeName = ksTypeArg.toTypeName().copy(nullable = isNullable)
+                    return when {
+                        qualifiedName == "kotlin.Int" || typeName == INT -> "getIntegerArrayListExtra"
+                        qualifiedName == "kotlin.String" || typeName == STRING -> "getStringArrayListExtra"
+                        qualifiedName == "kotlin.CharSequence" || typeName == CHAR_SEQUENCE -> "getCharSequenceArrayListExtra"
+                        else -> "getParcelableArrayListExtra"
+                    }
+                }
+
+                val getExtraMethod = when {
+                    ksType.declaration.qualifiedName?.asString() == "java.util.ArrayList" ||
+                            ksType.declaration.qualifiedName?.asString() == "kotlin.collections.ArrayList" -> selectGetExtraMethod()
+                    kotlinType == STRING -> "getStringExtra"
+                    kotlinType == BOOLEAN -> "getBooleanExtra"
+                    kotlinType == INT -> "getIntExtra"
+                    else -> "getSerializableExtra"
+                }
+
+                when (getExtraMethod) {
+                    "getBooleanExtra" ->
+                        addStatement("    this.%L = intent?.%L(%S, false)", name, getExtraMethod, name)
+                    "getIntExtra" ->
+                        addStatement("    this.%L = intent?.%L(%S, 0)", name, getExtraMethod, name)
+                    "getStringExtra", "getIntegerArrayListExtra", "getStringArrayListExtra",
+                    "getCharSequenceArrayListExtra", "getParcelableArrayListExtra" ->
+                        addStatement("    this.%L = intent?.%L(%S)", name, getExtraMethod, name)
+                    else ->
+                        addStatement("    this.%L = intent?.%L(%S) as? %T", name, getExtraMethod, name, kotlinType)
                 }
             }
 
@@ -246,8 +272,18 @@ class IntentProcessor(
         }.build()
     }
 
+    private fun KSAnnotation.getString(key: String): String =
+        arguments.first { it.name?.asString() == key }.value as String
+
+    private fun KSAnnotation.getBoolean(key: String): Boolean? =
+        arguments.firstOrNull { it.name?.asString() == key }?.value as? Boolean
+
+    private fun KSAnnotation.getKSType(key: String): KSType =
+        arguments.first { it.name?.asString() == key }.value as KSType
+
+
     private fun buildIntentBlock(targetName: String, params: List<KSAnnotation>) = CodeBlock.builder().apply {
-        add("return Intent(activity.get(), %L::class.java).apply {\n", targetName)
+        add("return activity.get()?.let { Intent(activity.get(), %L::class.java).apply {\n", targetName)
 
         for (annotation in params) {
             val name = annotation.arguments.first { it.name?.asString() == "name" }.value as String
@@ -312,7 +348,7 @@ class IntentProcessor(
             }
         }
 
-        add("}\n")
+        add("} \n } ?: throw ActivityReferenceEmptyException()\n")
     }.build()
 
 }
