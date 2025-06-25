@@ -32,18 +32,38 @@ class MainActivity : AppCompatActivity() {
     }
 }
 
-//@GenerateIntent(
-//    target = TestActivity::class,
-//    params = [
-//        Param("uriList", ArrayList::class, isNullable = false),
-//        Param("toolType", String::class),
-//        Param("hasResultCode", Boolean::class),
-//        Param("fromScreen", String::class),
-//        Param("recordedIndexList", ArrayList::class),
-//        Param("isFromPDFView", Boolean::class)
-//    ]
-//)
+@GenerateIntent(
+    target = TestActivity::class,
+    params = [
+        Param("uriList", ArrayList::class, isNullable = false),
+        Param("toolType", String::class),
+        Param("fromScreen", String::class),
+        Param("recordedIndexList", ArrayList::class),
+        Param("isFromPDFView", Boolean::class)
+    ]
+)
 class TestActivity : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContentView(R.layout.activity_main)
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            insets
+        }
+
+    }
+}
+
+@GenerateIntent(
+    target = DemiActivity::class,
+    params = [
+        Param("uriList", ArrayList::class, isNullable = false),
+        Param("isFromPDFView", Boolean::class)
+    ]
+)
+class DemiActivity: AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()

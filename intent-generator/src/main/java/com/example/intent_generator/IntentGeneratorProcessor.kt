@@ -23,6 +23,7 @@ import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.INT
 import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.LONG
+import com.squareup.kotlinpoet.ParameterSpec
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.SHORT
@@ -63,61 +64,84 @@ class IntentProcessor(
         val pkg = classDecl.packageName.asString()
         val intentClassName = "${targetName}Intent"
 
+        val activityType = ClassName("java.lang.ref", "WeakReference")
+            .parameterizedBy(ClassName("android.app", "Activity"))
+
+        val standardProps = listOf(
+            "activity" to activityType,
+            "hasResultCode" to BOOLEAN,
+            "resultCode" to INT,
+            "animate" to BOOLEAN,
+            "finish" to BOOLEAN,
+            "clearTop" to BOOLEAN.copy(nullable = true)
+        )
+
+        // Separate nullable and non-nullable intent params
+        val (nonNullableParams, nullableParams) = paramAnnotations.map { annotation ->
+            var name = ""
+            var type: TypeName = UNIT
+            var isNullable = true
+
+            for (arg in annotation.arguments) {
+                when (arg.name?.asString()) {
+                    "name" -> name = arg.value as String
+                    "type" -> type = (arg.value as KSType).toTypeName()
+                    "isNullable" -> isNullable = arg.value as Boolean
+                }
+            }
+
+            name to type.copy(nullable = isNullable)
+        }.partition { !it.second.isNullable }
+
         val fileSpec = FileSpec.builder(pkg, intentClassName).apply {
             addType(TypeSpec.classBuilder(intentClassName).apply {
                 superclass(ClassName("com.example.intentgenerationsample", "IntentHandler"))
 
-                val activityType = ClassName("java.lang.ref", "WeakReference")
-                    .parameterizedBy(ClassName("android.app", "Activity"))
-
-                val standardProps = listOf(
-                    "activity" to activityType,
-                    "hasResultCode" to BOOLEAN,
-                    "resultCode" to INT,
-                    "animate" to BOOLEAN,
-                    "finish" to BOOLEAN,
-                    "clearTop" to BOOLEAN.copy(nullable = true)
-                )
-
-                val ctor = FunSpec.constructorBuilder()
-                standardProps.forEach { (name, type) ->
-                    ctor.addParameter(name, type)
+                // Create primary constructor
+                val primaryCtor = FunSpec.constructorBuilder()
+                (standardProps + nonNullableParams).forEach { (name, type) ->
+                    primaryCtor.addParameter(name, type)
                     addProperty(
                         PropertySpec.builder(name, type)
                             .initializer(name)
-                            .addModifiers(KModifier.OVERRIDE)
+                            .apply {
+                                if (standardProps.any { it.first == name }) addModifiers(KModifier.OVERRIDE)
+                                else mutable(true)
+                            }
                             .build()
                     )
                 }
 
-                for (paramAnnotation in paramAnnotations) {
-                    var name = ""
-                    var type: TypeName = UNIT
-                    var isNullable = true
-
-                    for (arg in paramAnnotation.arguments) {
-                        when (arg.name?.asString()) {
-                            "name" -> name = arg.value as String
-                            "type" -> {
-                                val ksType = arg.value as KSType
-                                type = ksType.toTypeName()
-                            }
-                            "isNullable" -> isNullable = arg.value as Boolean
-                        }
-                    }
-
-                    val finalType = type.copy(nullable = isNullable)
-                    ctor.addParameter(name, finalType)
+                // Add nullable properties (default null)
+                nullableParams.forEach { (name, type) ->
                     addProperty(
-                        PropertySpec.builder(name, finalType)
-                            .initializer(name)
+                        PropertySpec.builder(name, type)
+                            .initializer("null")
                             .mutable(true)
                             .build()
                     )
                 }
 
-                primaryConstructor(ctor.build())
+                primaryConstructor(primaryCtor.build())
 
+                // Create secondary constructor
+                if (nullableParams.isNotEmpty()) {
+                    val codeBlock = CodeBlock.builder()
+                    nullableParams.forEach { (name, _) ->
+                        codeBlock.addStatement("this.%L = %L", name, name)
+                    }
+                    addFunction(
+                        FunSpec.constructorBuilder()
+                            .addParameters((standardProps + nonNullableParams + nullableParams).map { (name, type) ->
+                                ParameterSpec.builder(name, type).build()
+                            })
+                            .callThisConstructor(*(standardProps + nonNullableParams).map { it.first }.toTypedArray())
+                            .addCode(codeBlock.build())
+                            .build()
+                    )
+                }
+
+                // Add intent property with override
                 addProperty(
                     PropertySpec.builder("intent", ClassName("android.content", "Intent"))
                         .addModifiers(KModifier.OVERRIDE)
@@ -132,6 +156,7 @@ class IntentProcessor(
             }.build())
         }.build()
 
+        // Write to file
         codeGen.createNewFile(Dependencies(false), pkg, intentClassName).also {
             OutputStreamWriter(it, Charsets.UTF_8).use { writer ->
                 fileSpec.writeTo(writer)
@@ -163,7 +188,7 @@ class IntentProcessor(
             }
 
             if (isNullable) {
-                add("this.%L?.let { %L(%S, it) }\n", name, putExtraMethod, name)
+                add("%L?.let { %L(%S, it) }\n", name, putExtraMethod, name)
             } else {
                 add("%L(%S, %L)\n", putExtraMethod, name, name)
             }
