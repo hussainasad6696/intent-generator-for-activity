@@ -153,6 +153,15 @@ class IntentProcessor(
                         .build()
                 )
 
+                // === Add getDataHandler function ===
+                addFunction(
+                    FunSpec.builder("getDataHandler")
+                        .addModifiers(KModifier.OVERRIDE)
+                        .addParameter("intent", ClassName("android.content", "Intent").copy(nullable = true))
+                        .returns(ClassName(pkg, intentClassName))
+                        .addCode(buildGetDataHandlerCodeBlock(pkg, intentClassName, standardProps, nonNullableParams, nullableParams))
+                        .build()
+                )
             }.build())
         }.build()
 
@@ -163,6 +172,49 @@ class IntentProcessor(
                 writer.flush()
             }
         }
+    }
+
+    // Helper function to build the getDataHandler function body
+    private fun buildGetDataHandlerCodeBlock(
+        pkg: String,
+        intentClassName: String,
+        standardProps: List<Pair<String, TypeName>>,
+        nonNullableParams: List<Pair<String, TypeName>>,
+        nullableParams: List<Pair<String, TypeName>>
+    ): CodeBlock {
+        return CodeBlock.builder().apply {
+            addStatement("val intent = intent ?: activity.get()?.intent")
+
+            // Start constructor call
+            add("return %L(\n", intentClassName)
+
+            val primaryParams = standardProps + nonNullableParams
+
+            primaryParams.forEach { (name, type) ->
+                when {
+                    name == "activity" -> addStatement("    %L = activity,", name)
+                    type == BOOLEAN -> addStatement("    %L = intent?.getBooleanExtra(%S, false) == true,", name, name)
+                    type == INT -> addStatement("    %L = intent?.getIntExtra(%S, 0) ?: 0,", name, name)
+                    type.isNullable -> addStatement("    %L = null,", name) // nullable params go to secondary constructor
+                    else -> addStatement("    %L = intent?.getSerializableExtra(%S) as? %T ?: error(%S),", name, name, type, "Missing required param $name")
+                }
+            }
+
+            add(").apply {\n")
+
+            // Nullable params assigned inside apply block
+            nullableParams.forEach { (name, type) ->
+                val key = name // You might want to customize the intent key names if needed
+                when {
+                    type.copy(nullable = false) == STRING.copy(nullable = false) -> addStatement("    this.%L = intent?.getStringExtra(%S)", name, key)
+                    type.copy(nullable = false) == BOOLEAN.copy(nullable = false) -> addStatement("    this.%L = intent?.getBooleanExtra(%S, false)", name, key)
+                    type.copy(nullable = false) == INT.copy(nullable = false) -> addStatement("    this.%L = intent?.getIntExtra(%S, 0)", name, key)
+                    else -> addStatement("    this.%L = intent?.getSerializableExtra(%S) as? %T", name, key, type.copy(nullable = false))
+                }
+            }
+
+            add("}\n")
+        }.build()
     }
 
     private fun buildIntentBlock(targetName: String, params: List<KSAnnotation>) = CodeBlock.builder().apply {
