@@ -1,4 +1,4 @@
-package com.example.intentgenerationsample
+package com.example.intent_data_generator
 
 import android.app.Activity
 import android.content.ActivityNotFoundException

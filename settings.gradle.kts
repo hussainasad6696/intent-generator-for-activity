@@ -23,3 +23,4 @@ rootProject.name = "IntentGenerationSample"
 include(":app")
 //include(":intentHandler")
 include(":intent-generator")
+include(":app:intent-data-generator")
