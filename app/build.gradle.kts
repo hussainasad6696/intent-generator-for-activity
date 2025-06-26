@@ -19,6 +19,8 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    android.sourceSets["main"].java.srcDir("build/generated/ksp/debug/kotlin")
+    android.sourceSets["main"].java.srcDir("build/generated/ksp/release/kotlin")
 
     buildFeatures {
         buildConfig = true

@@ -8,6 +8,14 @@ android {
     namespace = "com.intent.intent_data_generator"
     compileSdk = 35
 
+    libraryVariants.all {
+        val variant = this
+        val name = variant.name
+        kotlin.sourceSets.getByName(name) {
+            kotlin.srcDir("build/generated/ksp/$name/kotlin")
+        }
+    }
+
     defaultConfig {
         minSdk = 24
 
@@ -20,6 +28,10 @@ android {
     }
 
     buildTypes {
+        debug {
+            
+        }
+
         release {
             isMinifyEnabled = false
             proguardFiles(
