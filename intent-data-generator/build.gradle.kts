@@ -1,20 +1,12 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
-    id("com.google.devtools.ksp")
+    id("com.google.devtools.ksp") version "2.1.20-2.0.1"
 }
 
 android {
     namespace = "com.intent.intent_data_generator"
     compileSdk = 35
-
-    libraryVariants.all {
-        val variant = this
-        val name = variant.name
-        kotlin.sourceSets.getByName(name) {
-            kotlin.srcDir("build/generated/ksp/$name/kotlin")
-        }
-    }
 
     defaultConfig {
         minSdk = 24
@@ -23,13 +15,17 @@ android {
         consumerProguardFiles("consumer-rules.pro")
     }
 
+    sourceSets {
+        getByName("main").java.srcDir("build/generated/ksp/debug/kotlin")
+    }
+
     buildFeatures {
         buildConfig = true
     }
 
     buildTypes {
         debug {
-            
+
         }
 
         release {
@@ -58,6 +54,6 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 
-    api(project(":intent-generator"))
-    ksp(project(":intent-generator"))
+//    api(project(":intent-generator"))
+//    ksp(project(":intent-generator"))
 }

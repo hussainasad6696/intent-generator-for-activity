@@ -107,15 +107,23 @@ class IntentProcessor(
 
         val fileSpec = FileSpec.builder(pkg, intentClassName).apply {
             addType(TypeSpec.classBuilder(intentClassName).apply {
-                superclass(ClassName("com.intent.intent_data_generator", "IntentHandler"))
+                superclass(ClassName("com.example.intentgenerationsample", "IntentHandler"))
 
                 // Create primary constructor
                 val primaryCtor = FunSpec.constructorBuilder()
                 (standardProps + nonNullableParams).forEach { (name, type) ->
                     val paramBuilder = ParameterSpec.builder(name, type)
-                    if (name == "resultCode") {
+                    if (name == "resultCode")
                         paramBuilder.defaultValue("%L", resultCodeValue)
-                    }
+                    if (name == "hasResultCode")
+                        paramBuilder.defaultValue("%L", false)
+                    if (name == "animate")
+                        paramBuilder.defaultValue("%L", false)
+                    if (name == "finish")
+                        paramBuilder.defaultValue("%L", false)
+                    if (name == "clearTop")
+                        paramBuilder.defaultValue("%L", null)
+
                     primaryCtor.addParameter(paramBuilder.build())
                     addProperty(
                         PropertySpec.builder(name, type)

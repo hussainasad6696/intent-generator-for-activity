@@ -22,4 +22,7 @@ dependencies {
     implementation("com.google.devtools.ksp:symbol-processing-api:2.1.20-2.0.1")
     implementation("com.squareup:kotlinpoet:1.14.2")
     implementation("com.squareup:kotlinpoet-ksp:1.14.2")
+
+//    implementation("com.google.auto.service:auto-service:1.1.1")
+//    annotationProcessor("com.google.auto.service:auto-service:1.1.1")
 }

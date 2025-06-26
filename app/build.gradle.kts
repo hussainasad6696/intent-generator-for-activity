@@ -19,8 +19,8 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    android.sourceSets["main"].java.srcDir("build/generated/ksp/debug/kotlin")
-    android.sourceSets["main"].java.srcDir("build/generated/ksp/release/kotlin")
+//    android.sourceSets["main"].java.srcDir("build/generated/ksp/debug/kotlin")
+//    android.sourceSets["main"].java.srcDir("build/generated/ksp/release/kotlin")
 
     buildFeatures {
         buildConfig = true
@@ -63,7 +63,9 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
 
 //    implementation(kotlin("stdlib"))
-    implementation(project(":intent-data-generator"))
+//    implementation(project(":intent-data-generator"))
+    implementation(project(":intent-generator"))
+    ksp(project(":intent-generator"))
 
     implementation(libs.kotlinx.serialization.json)
 }

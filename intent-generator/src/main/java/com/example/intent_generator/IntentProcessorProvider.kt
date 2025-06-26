@@ -7,6 +7,7 @@ import com.google.devtools.ksp.processing.SymbolProcessorProvider
 //@AutoService(SymbolProcessorProvider::class)
 class IntentProcessorProvider : SymbolProcessorProvider {
     override fun create(environment: SymbolProcessorEnvironment): SymbolProcessor {
+        environment.logger.warn("✅ ProcessorProvider invoked")
         return IntentProcessor(environment.codeGenerator, environment.logger)
     }
 }
