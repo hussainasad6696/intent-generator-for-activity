@@ -1,5 +1,6 @@
 package com.example.intentgenerationsample
 
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.os.Parcelable
@@ -11,7 +12,6 @@ import com.example.intent_generator.annotations.GenerateIntent
 import com.example.intent_generator.annotations.Param
 import kotlinx.parcelize.Parcelize
 import kotlinx.serialization.Serializable
-import java.lang.ref.WeakReference
 
 @Serializable
 @Parcelize
@@ -40,6 +40,13 @@ data class Demi(val p1: String, val p2: Demi2): Parcelable
     ]
 )
 class MainActivity : AppCompatActivity() {
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+
+
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()

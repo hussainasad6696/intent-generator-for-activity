@@ -1,4 +1,4 @@
-package com.example.intent_data_generator
+package com.intent.intent_data_generator
 
 import org.junit.Test
 

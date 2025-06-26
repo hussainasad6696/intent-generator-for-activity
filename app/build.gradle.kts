@@ -19,6 +19,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+
     buildFeatures {
         buildConfig = true
     }
@@ -60,7 +61,7 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
 
 //    implementation(kotlin("stdlib"))
-    implementation(project("intent-data-generator"))
+    implementation(project(":intent-data-generator"))
 
     implementation(libs.kotlinx.serialization.json)
 }

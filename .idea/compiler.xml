@@ -2,6 +2,7 @@
 <project version="4">
   <component name="CompilerConfiguration">
     <bytecodeTargetLevel target="17">
+      <module name="IntentGenerationSample.app.intent-data-generator" target="21" />
       <module name="IntentGenerationSample.intent-processor" target="21" />
       <module name="IntentGenerationSample.intent-processor.main" target="21" />
       <module name="IntentGenerationSample.intent-processor.test" target="21" />

@@ -1,21 +1,17 @@
 plugins {
-    alias(libs.plugins.android.application)
+    alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
-    id("com.google.devtools.ksp")
 }
 
 android {
-    namespace = "com.example.intent_data_generator"
+    namespace = "com.intent.intent_data_generator"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.example.intent_data_generator"
         minSdk = 24
-        targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        consumerProguardFiles("consumer-rules.pro")
     }
 
     buildFeatures {
@@ -48,7 +44,4 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
-
-    api(project(":intent-generator"))
-    ksp(project(":intent-generator"))
 }

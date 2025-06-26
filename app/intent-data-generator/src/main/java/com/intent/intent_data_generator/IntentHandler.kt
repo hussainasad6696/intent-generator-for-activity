@@ -1,11 +1,10 @@
-package com.example.intent_data_generator
+package com.intent.intent_data_generator
 
 import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.util.Log
 import java.lang.ref.WeakReference
-import kotlin.reflect.KProperty1
 
 interface IntentFactory {
     val activity: WeakReference<Activity>
@@ -33,7 +32,7 @@ abstract class IntentHandler : IntentFactory {
     open fun getDataHandler(intent: Intent? = null): IntentHandler = this
     open fun setIntentResultListener(intentResultHandler: IntentResultHandler) {}
 
-    fun safeIntent(): Intent? = runCatching {
+    fun  safeIntent(): Intent? = runCatching {
         Log.i(TAG, "safeIntent: ${toString()}")
         intent
     }.getOrNull()
@@ -46,7 +45,7 @@ abstract class IntentHandler : IntentFactory {
             activity.setResult(resultCode, intent)
 
             if (finish) activity.finish()
-//            if (animate) activity.animateActivity()
+            if (animate) activity.animateActivity()
         } catch (e: ActivityReferenceEmptyException) {
             e.printStackTrace()
         } catch (e: Exception) {
@@ -74,8 +73,8 @@ abstract class IntentHandler : IntentFactory {
                 activity.startActivityForResult(modifiedIntent, resultCode)
             else activity.startActivity(modifiedIntent)
 
-//            if (animate)
-//                activity.animateActivity(false)
+            if (animate)
+                activity.animateActivity(false)
         } catch (e: ActivityNotFoundException) {
             e.printStackTrace()
         } catch (e: Exception) {
@@ -89,7 +88,7 @@ abstract class IntentHandler : IntentFactory {
         val sb = StringBuilder()
 
         val kClass = this::class
-        val properties = kClass.members.filterIsInstance<KProperty1<Any, *>>()
+        val properties = kClass.members.filterIsInstance<kotlin.reflect.KProperty1<Any, *>>()
 
         sb.append("\n===================================================================")
         sb.append("\n===========================IntentHandler===========================")

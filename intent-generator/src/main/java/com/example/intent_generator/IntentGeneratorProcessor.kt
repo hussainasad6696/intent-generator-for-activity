@@ -107,7 +107,7 @@ class IntentProcessor(
 
         val fileSpec = FileSpec.builder(pkg, intentClassName).apply {
             addType(TypeSpec.classBuilder(intentClassName).apply {
-                superclass(ClassName("com.example.intentgenerationsample", "IntentHandler"))
+                superclass(ClassName("com.intent.intent_data_generator", "IntentHandler"))
 
                 // Create primary constructor
                 val primaryCtor = FunSpec.constructorBuilder()
