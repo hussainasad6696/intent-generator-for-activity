@@ -69,8 +69,7 @@ class MainActivity : AppCompatActivity() {
 
         TestActivityIntent(
             activity = WeakReference(this),
-            uriList = arrayListOf(),
-
+            uriList = arrayListOf()
         ).startActivity()
     }
 }
@@ -96,13 +95,6 @@ class TestActivity : AppCompatActivity() {
             insets
         }
 
-//        DemiActivityIntent(activity = WeakReference(this),
-//            hasResultCode = false,
-//            resultCode = 0,
-//            animate = false,
-//            finish = false,
-//            clearTop = false,
-//            uriList = arrayListOf<String>()).startActivity()
     }
 }
 
@@ -124,14 +116,5 @@ class DemiActivity : AppCompatActivity() {
             insets
         }
 
-//        val data = DemiActivityIntent(activity = WeakReference(this),
-//            hasResultCode = false,
-//            resultCode = 0,
-//            animate = false,
-//            finish = false,
-//            clearTop = false,
-//            uriList = arrayListOf<String>()).getDataHandler()
-//
-//        data.isFromPDFView
     }
 }
