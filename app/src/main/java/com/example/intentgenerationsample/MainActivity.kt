@@ -10,10 +10,13 @@ import androidx.core.view.WindowInsetsCompat
 import com.example.intent_generator.annotations.GenerateIntent
 import com.example.intent_generator.annotations.Param
 import kotlinx.parcelize.Parcelize
+import kotlinx.serialization.Serializable
 import java.lang.ref.WeakReference
 
+@Serializable
 @Parcelize
 data class Demi2(val p1: String, val p2: Int) : Parcelable
+@Serializable
 @Parcelize
 data class Demi(val p1: String, val p2: Demi2): Parcelable
 

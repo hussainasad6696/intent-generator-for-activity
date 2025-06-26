@@ -6,5 +6,6 @@ import kotlin.reflect.KClass
 @Retention(AnnotationRetention.SOURCE)
 annotation class GenerateIntent(
     val target: KClass<*>,
+    val resultCode: Int = 0,
     val params: Array<Param> = []
 )

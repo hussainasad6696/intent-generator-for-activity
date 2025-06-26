@@ -62,4 +62,6 @@ dependencies {
 //    implementation(kotlin("stdlib"))
     implementation(project(":intent-generator"))
     ksp(project(":intent-generator"))
+
+    implementation(libs.kotlinx.serialization.json)
 }
