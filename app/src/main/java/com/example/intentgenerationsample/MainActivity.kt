@@ -19,7 +19,6 @@ data class Demi2(val p1: String, val p2: Int) : Parcelable
 @Serializable
 @Parcelize
 data class Demi(val p1: String, val p2: Demi2): Parcelable
-
 @GenerateIntent(
     target = MainActivity::class,
     resultCode = 1002,
