@@ -15,6 +15,7 @@ import com.google.devtools.ksp.symbol.KSValueArgument
 import com.squareup.kotlinpoet.BOOLEAN
 import com.squareup.kotlinpoet.BYTE
 import com.squareup.kotlinpoet.CHAR
+import com.squareup.kotlinpoet.CHAR_SEQUENCE
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.DOUBLE
@@ -26,6 +27,7 @@ import com.squareup.kotlinpoet.INT_ARRAY
 import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.LONG
 import com.squareup.kotlinpoet.ParameterSpec
+import com.squareup.kotlinpoet.ParameterizedTypeName
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.SHORT
@@ -58,8 +60,10 @@ class IntentProcessor(
     private fun generateClass(classDecl: KSClassDeclaration) {
         val annotation = classDecl.annotations.first { it.shortName.asString() == "GenerateIntent" }
 
-        val targetType = annotation.arguments.first { it.name?.asString() == "target" }.value as KSType
-        val paramsValue = annotation.arguments.firstOrNull { it.name?.asString() == "params" }?.value
+        val targetType =
+            annotation.arguments.first { it.name?.asString() == "target" }.value as KSType
+        val paramsValue =
+            annotation.arguments.firstOrNull { it.name?.asString() == "params" }?.value
         val paramAnnotations = paramsValue as? List<KSAnnotation> ?: emptyList()
 
         val targetName = targetType.declaration.simpleName.asString()
@@ -83,16 +87,23 @@ class IntentProcessor(
             var name = ""
             var type: TypeName = UNIT
             var isNullable = true
+            var typeArg: TypeName = UNIT
 
             for (arg in annotation.arguments) {
                 when (arg.name?.asString()) {
                     "name" -> name = arg.value as String
                     "type" -> type = (arg.value as KSType).toTypeName()
+                    "typeArg" -> typeArg = (arg.value as KSType).toTypeName()
                     "isNullable" -> isNullable = arg.value as Boolean
                 }
             }
 
-            name to type.copy(nullable = isNullable)
+            // Build type like ArrayList<Uri> instead of ArrayList<*>
+            val finalType = if (type is ParameterizedTypeName) {
+                type.rawType.parameterizedBy(typeArg)
+            } else type
+
+            name to finalType.copy(nullable = isNullable)
         }.partition { !it.second.isNullable }
 
         val fileSpec = FileSpec.builder(pkg, intentClassName).apply {
@@ -137,7 +148,8 @@ class IntentProcessor(
                             .addParameters((standardProps + nonNullableParams + nullableParams).map { (name, type) ->
                                 ParameterSpec.builder(name, type).build()
                             })
-                            .callThisConstructor(*(standardProps + nonNullableParams).map { it.first }.toTypedArray())
+                            .callThisConstructor(*(standardProps + nonNullableParams).map { it.first }
+                                .toTypedArray())
                             .addCode(codeBlock.build())
                             .build()
                     )
@@ -159,9 +171,21 @@ class IntentProcessor(
                 addFunction(
                     FunSpec.builder("getDataHandler")
                         .addModifiers(KModifier.OVERRIDE)
-                        .addParameter("intent", ClassName("android.content", "Intent").copy(nullable = true))
+                        .addParameter(
+                            "intent",
+                            ClassName("android.content", "Intent").copy(nullable = true)
+                        )
                         .returns(ClassName(pkg, intentClassName))
-                        .addCode(buildGetDataHandlerCodeBlock(pkg, intentClassName, standardProps, nonNullableParams, nullableParams))
+                        .addCode(
+                            buildGetDataHandlerCodeBlock(
+                                pkg = pkg,
+                                intentClassName = intentClassName,
+                                standardProps = standardProps,
+                                nonNullableParams = nonNullableParams,
+                                nullableParams = nullableParams,
+//                                paramAnnotations = paramAnnotations
+                            )
+                        )
                         .build()
                 )
             }.build())
@@ -211,7 +235,10 @@ class IntentProcessor(
                     type.copy(nullable = false) == STRING.copy(nullable = false) -> addStatement("    this.%L = intent?.getStringExtra(%S)", name, key)
                     type.copy(nullable = false) == BOOLEAN.copy(nullable = false) -> addStatement("    this.%L = intent?.getBooleanExtra(%S, false)", name, key)
                     type.copy(nullable = false) == INT.copy(nullable = false) -> addStatement("    this.%L = intent?.getIntExtra(%S, 0)", name, key)
-                    else -> addStatement("    this.%L = intent?.getSerializableExtra(%S) as? %T", name, key, type.copy(nullable = false))
+                    else -> addStatement(
+                        "    %L = intent?.getSerializableExtra(%S) as? %T ?: error(%S)",
+                        name, name, type, "Missing required param $name"
+                    )
                 }
             }
 
@@ -225,24 +252,53 @@ class IntentProcessor(
         for (annotation in params) {
             val name = annotation.arguments.first { it.name?.asString() == "name" }.value as String
             val ksType = annotation.arguments.first { it.name?.asString() == "type" }.value as KSType
+            val ksTypeArg = annotation.arguments.first { it.name?.asString() == "typeArg" }.value as KSType
             val isNullable = annotation.arguments.firstOrNull { it.name?.asString() == "isNullable" }?.value as? Boolean == true
 
             val kotlinType = ksType.toTypeName().copy(nullable = isNullable)
 
-            // Determine if the type is an ArrayList<Int> or ArrayList<Parcelable>
+            logger.info("buildIntentBlock $name $kotlinType")
+
+            fun returnKSTypeOfArray(): String {
+                val qualifiedName = ksTypeArg.declaration.qualifiedName?.asString()
+                val kotlinType = ksTypeArg.toTypeName().copy(nullable = isNullable)
+
+                logger.info("🧪 Checking array type: qualifiedName=$qualifiedName, kotlinType=$kotlinType")
+
+                return when {
+                    qualifiedName == "kotlin.Int" || qualifiedName == "kotlin.Int?" ||
+                            kotlinType == INT || kotlinType == INT.copy(nullable = true) -> {
+                        "putIntegerArrayListExtra"
+                    }
+
+                    qualifiedName == "kotlin.String" || qualifiedName == "kotlin.String?" ||
+                            kotlinType == STRING || kotlinType == STRING.copy(nullable = true) -> {
+                        "putStringArrayListExtra"
+                    }
+
+                    qualifiedName == "kotlin.CharSequence" || qualifiedName == "kotlin.CharSequence?" ||
+                            kotlinType == CHAR_SEQUENCE || kotlinType == CHAR_SEQUENCE.copy(nullable = true) -> {
+                        "putCharSequenceArrayListExtra"
+                    }
+
+                    else -> {
+                        logger.warn("⚠️ Defaulting to putParcelableArrayListExtra for $qualifiedName")
+                        "putParcelableArrayListExtra"
+                    }
+                }.also {
+                    logger.info("✅ Selected putExtra method: $it")
+                }
+            }
+
             val putExtraMethod = when {
-                // Check for ArrayList<Int>
-                ksType.isArrayListOfInt() -> "putIntegerArrayListExtra"
-
-                // Check for ArrayList<Parcelable>
-                ksType.isArrayListOfParcelable() -> "putParcelableArrayListExtra"
-
-                kotlinType == STRING -> "putStringExtra"
-                kotlinType == BOOLEAN -> "putBooleanExtra"
-                kotlinType == INT -> "putIntExtra"
-                kotlinType == LONG -> "putLongExtra"
-                kotlinType == FLOAT -> "putFloatExtra"
-                kotlinType == DOUBLE -> "putDoubleExtra"
+                ksType.declaration.qualifiedName?.asString() == "java.util.ArrayList" -> returnKSTypeOfArray()
+                ksType.declaration.qualifiedName?.asString() == "kotlin.collections.ArrayList" -> returnKSTypeOfArray()
+                kotlinType == STRING -> "putExtra"
+                kotlinType == BOOLEAN -> "putExtra"
+                kotlinType == INT -> "putExtra"
+                kotlinType == LONG -> "putExtra"
+                kotlinType == FLOAT -> "putExtra"
+                kotlinType == DOUBLE -> "putExtra"
                 kotlinType == BYTE -> "putExtra" // no putByteExtra in Intent
                 kotlinType == CHAR -> "putExtra"
                 kotlinType == SHORT -> "putExtra"
@@ -258,48 +314,5 @@ class IntentProcessor(
 
         add("}\n")
     }.build()
-
-    // Helper extensions to detect ArrayList<Int> and ArrayList<Parcelable>
-    private fun KSType.isArrayListOfInt(): Boolean {
-        if (!this.declaration.qualifiedName?.asString().equals("java.util.ArrayList")) return false
-        val typeArg = this.arguments.firstOrNull()?.type?.resolve() ?: return false
-        return typeArg.isInt()
-    }
-
-    private fun KSType.isArrayListOfParcelable(): Boolean {
-        if (!this.declaration.qualifiedName?.asString().equals("java.util.ArrayList")) return false
-        val typeArg = this.arguments.firstOrNull()?.type?.resolve() ?: return false
-        return typeArg.isParcelable()
-    }
-
-    // Extension to check if KSType is Int
-    private fun KSType.isInt(): Boolean {
-        return this.declaration.qualifiedName?.asString() == "kotlin.Int"
-    }
-
-    fun KSType.isParcelable(): Boolean {
-        val parcelableFqName = "android.os.Parcelable"
-
-        // Check if the current type is Parcelable directly
-        if (declaration.qualifiedName?.asString() == parcelableFqName) return true
-
-        // Recursively check supertypes
-        fun checkSupertypes(ksType: KSType): Boolean {
-            return ksType.declaration.getAllSuperTypes()
-                .any { it.declaration.qualifiedName?.asString() == parcelableFqName }
-        }
-
-        return checkSupertypes(this)
-    }
-
-    fun KSDeclaration.getAllSuperTypes(): Sequence<KSType> = sequence {
-        if (this@getAllSuperTypes is KSClassDeclaration) {
-            for (superTypeRef in this@getAllSuperTypes.superTypes) {
-                val resolved = superTypeRef.resolve()
-                yield(resolved)
-                yieldAll(resolved.declaration.getAllSuperTypes())
-            }
-        }
-    }
 
 }

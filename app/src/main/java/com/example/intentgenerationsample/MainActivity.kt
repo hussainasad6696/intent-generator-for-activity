@@ -1,22 +1,39 @@
 package com.example.intentgenerationsample
 
+import android.net.Uri
 import android.os.Bundle
+import android.os.Parcelable
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.example.intent_generator.annotations.GenerateIntent
 import com.example.intent_generator.annotations.Param
+import kotlinx.parcelize.Parcelize
 import java.lang.ref.WeakReference
+
+@Parcelize
+data class Demi2(val p1: String, val p2: Int) : Parcelable
+@Parcelize
+data class Demi(val p1: String, val p2: Demi2): Parcelable
 
 @GenerateIntent(
     target = MainActivity::class,
     params = [
-        Param("uriList", ArrayList::class, isNullable = false),
-        Param("toolType", String::class),
-        Param("fromScreen", String::class),
-        Param("recordedIndexList", ArrayList::class),
-        Param("isFromPDFView", Boolean::class)
+        Param("intList", ArrayList::class, Int::class),
+        Param("stringList", ArrayList::class, String::class),
+        Param("charSeqList", ArrayList::class, CharSequence::class),
+        Param("uriList", ArrayList::class, Uri::class, isNullable = false),
+        Param("customParcelableList", ArrayList::class, Demi::class),
+        Param("customParcelable", Demi::class),
+        Param("intValue", Int::class),
+        Param("longValue", Long::class),
+        Param("floatValue", Float::class),
+        Param("doubleValue", Double::class),
+        Param("booleanValue", Boolean::class),
+        Param("shortValue", Short::class),
+        Param("byteValue", Byte::class),
+        Param("charValue", Char::class)
     ]
 )
 class MainActivity : AppCompatActivity() {
@@ -33,16 +50,16 @@ class MainActivity : AppCompatActivity() {
     }
 }
 
-@GenerateIntent(
-    target = TestActivity::class,
-    params = [
-        Param("uriList", ArrayList::class, isNullable = false),
-        Param("toolType", String::class),
-        Param("fromScreen", String::class),
-        Param("recordedIndexList", ArrayList::class),
-        Param("isFromPDFView", Boolean::class)
-    ]
-)
+//@GenerateIntent(
+//    target = TestActivity::class,
+//    params = [
+//        Param("uriList", ArrayList::class, isNullable = false),
+//        Param("toolType", String::class),
+//        Param("fromScreen", String::class),
+//        Param("recordedIndexList", ArrayList::class),
+//        Param("isFromPDFView", Boolean::class)
+//    ]
+//)
 class TestActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -54,24 +71,24 @@ class TestActivity : AppCompatActivity() {
             insets
         }
 
-        DemiActivityIntent(activity = WeakReference(this),
-            hasResultCode = false,
-            resultCode = 0,
-            animate = false,
-            finish = false,
-            clearTop = false,
-            uriList = arrayListOf<String>()).startActivity()
+//        DemiActivityIntent(activity = WeakReference(this),
+//            hasResultCode = false,
+//            resultCode = 0,
+//            animate = false,
+//            finish = false,
+//            clearTop = false,
+//            uriList = arrayListOf<String>()).startActivity()
     }
 }
 
-@GenerateIntent(
-    target = DemiActivity::class,
-    params = [
-        Param("uriList", ArrayList::class, isNullable = false),
-        Param("isFromPDFView", Boolean::class)
-    ]
-)
-class DemiActivity: AppCompatActivity() {
+//@GenerateIntent(
+//    target = DemiActivity::class,
+//    params = [
+//        Param("uriList", ArrayList::class, isNullable = false),
+//        Param("isFromPDFView", Boolean::class)
+//    ]
+//)
+class DemiActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -82,14 +99,14 @@ class DemiActivity: AppCompatActivity() {
             insets
         }
 
-        val data = DemiActivityIntent(activity = WeakReference(this),
-            hasResultCode = false,
-            resultCode = 0,
-            animate = false,
-            finish = false,
-            clearTop = false,
-            uriList = arrayListOf<String>()).getDataHandler()
-
-        data.isFromPDFView
+//        val data = DemiActivityIntent(activity = WeakReference(this),
+//            hasResultCode = false,
+//            resultCode = 0,
+//            animate = false,
+//            finish = false,
+//            clearTop = false,
+//            uriList = arrayListOf<String>()).getDataHandler()
+//
+//        data.isFromPDFView
     }
 }
