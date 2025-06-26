@@ -9,6 +9,7 @@ import com.google.devtools.ksp.processing.SymbolProcessor
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSAnnotation
 import com.google.devtools.ksp.symbol.KSClassDeclaration
+import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.KSValueArgument
 import com.squareup.kotlinpoet.BOOLEAN
@@ -21,6 +22,7 @@ import com.squareup.kotlinpoet.FLOAT
 import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.INT
+import com.squareup.kotlinpoet.INT_ARRAY
 import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.LONG
 import com.squareup.kotlinpoet.ParameterSpec
@@ -222,20 +224,28 @@ class IntentProcessor(
 
         for (annotation in params) {
             val name = annotation.arguments.first { it.name?.asString() == "name" }.value as String
-            val type = annotation.arguments.first { it.name?.asString() == "type" }.value as KSType
+            val ksType = annotation.arguments.first { it.name?.asString() == "type" }.value as KSType
             val isNullable = annotation.arguments.firstOrNull { it.name?.asString() == "isNullable" }?.value as? Boolean == true
 
-            val kotlinType = type.toTypeName().copy(nullable = isNullable)
-            val putExtraMethod = when (kotlinType) {
-                STRING -> "putStringExtra"
-                BOOLEAN -> "putBooleanExtra"
-                INT -> "putIntExtra"
-                LONG -> "putLongExtra"
-                FLOAT -> "putFloatExtra"
-                DOUBLE -> "putDoubleExtra"
-                BYTE -> "putExtra" // byte is usually single, putByteExtra not in Intent
-                CHAR -> "putExtra"
-                SHORT -> "putExtra"
+            val kotlinType = ksType.toTypeName().copy(nullable = isNullable)
+
+            // Determine if the type is an ArrayList<Int> or ArrayList<Parcelable>
+            val putExtraMethod = when {
+                // Check for ArrayList<Int>
+                ksType.isArrayListOfInt() -> "putIntegerArrayListExtra"
+
+                // Check for ArrayList<Parcelable>
+                ksType.isArrayListOfParcelable() -> "putParcelableArrayListExtra"
+
+                kotlinType == STRING -> "putStringExtra"
+                kotlinType == BOOLEAN -> "putBooleanExtra"
+                kotlinType == INT -> "putIntExtra"
+                kotlinType == LONG -> "putLongExtra"
+                kotlinType == FLOAT -> "putFloatExtra"
+                kotlinType == DOUBLE -> "putDoubleExtra"
+                kotlinType == BYTE -> "putExtra" // no putByteExtra in Intent
+                kotlinType == CHAR -> "putExtra"
+                kotlinType == SHORT -> "putExtra"
                 else -> "putExtra"
             }
 
@@ -248,4 +258,48 @@ class IntentProcessor(
 
         add("}\n")
     }.build()
+
+    // Helper extensions to detect ArrayList<Int> and ArrayList<Parcelable>
+    private fun KSType.isArrayListOfInt(): Boolean {
+        if (!this.declaration.qualifiedName?.asString().equals("java.util.ArrayList")) return false
+        val typeArg = this.arguments.firstOrNull()?.type?.resolve() ?: return false
+        return typeArg.isInt()
+    }
+
+    private fun KSType.isArrayListOfParcelable(): Boolean {
+        if (!this.declaration.qualifiedName?.asString().equals("java.util.ArrayList")) return false
+        val typeArg = this.arguments.firstOrNull()?.type?.resolve() ?: return false
+        return typeArg.isParcelable()
+    }
+
+    // Extension to check if KSType is Int
+    private fun KSType.isInt(): Boolean {
+        return this.declaration.qualifiedName?.asString() == "kotlin.Int"
+    }
+
+    fun KSType.isParcelable(): Boolean {
+        val parcelableFqName = "android.os.Parcelable"
+
+        // Check if the current type is Parcelable directly
+        if (declaration.qualifiedName?.asString() == parcelableFqName) return true
+
+        // Recursively check supertypes
+        fun checkSupertypes(ksType: KSType): Boolean {
+            return ksType.declaration.getAllSuperTypes()
+                .any { it.declaration.qualifiedName?.asString() == parcelableFqName }
+        }
+
+        return checkSupertypes(this)
+    }
+
+    fun KSDeclaration.getAllSuperTypes(): Sequence<KSType> = sequence {
+        if (this@getAllSuperTypes is KSClassDeclaration) {
+            for (superTypeRef in this@getAllSuperTypes.superTypes) {
+                val resolved = superTypeRef.resolve()
+                yield(resolved)
+                yieldAll(resolved.declaration.getAllSuperTypes())
+            }
+        }
+    }
+
 }

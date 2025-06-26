@@ -7,6 +7,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.example.intent_generator.annotations.GenerateIntent
 import com.example.intent_generator.annotations.Param
+import java.lang.ref.WeakReference
 
 @GenerateIntent(
     target = MainActivity::class,
@@ -53,6 +54,13 @@ class TestActivity : AppCompatActivity() {
             insets
         }
 
+        DemiActivityIntent(activity = WeakReference(this),
+            hasResultCode = false,
+            resultCode = 0,
+            animate = false,
+            finish = false,
+            clearTop = false,
+            uriList = arrayListOf<String>()).startActivity()
     }
 }
 
@@ -74,5 +82,14 @@ class DemiActivity: AppCompatActivity() {
             insets
         }
 
+        val data = DemiActivityIntent(activity = WeakReference(this),
+            hasResultCode = false,
+            resultCode = 0,
+            animate = false,
+            finish = false,
+            clearTop = false,
+            uriList = arrayListOf<String>()).getDataHandler()
+
+        data.isFromPDFView
     }
 }

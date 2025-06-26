@@ -7,5 +7,6 @@ import kotlin.reflect.KClass
 annotation class Param(
     val name: String,
     val type: KClass<*>,
+    val typeArg: KClass<*> = Unit::class,
     val isNullable: Boolean = true
 )
