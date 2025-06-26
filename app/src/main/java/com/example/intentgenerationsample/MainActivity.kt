@@ -22,6 +22,7 @@ data class Demi(val p1: String, val p2: Demi2): Parcelable
 
 @GenerateIntent(
     target = MainActivity::class,
+    resultCode = 1002,
     params = [
         Param("intList", ArrayList::class, Int::class),
         Param("stringList", ArrayList::class, String::class),

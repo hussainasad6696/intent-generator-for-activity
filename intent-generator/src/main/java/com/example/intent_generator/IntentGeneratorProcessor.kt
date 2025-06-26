@@ -43,14 +43,6 @@ class IntentProcessor(
     private val logger: KSPLogger
 ) : SymbolProcessor {
 
-    private fun writeLogsToFile(logs: String) {
-        val file = File("./","logs.txt")
-        if (file.exists().not())
-            file.createNewFile()
-
-        file.writeText(logs + "\n")
-    }
-
     override fun process(resolver: Resolver): List<KSAnnotated> {
         logger.warn("🛠️ IntentProcessor is running...")
         logger.info("Present in intent processor")
@@ -70,6 +62,7 @@ class IntentProcessor(
             annotation.arguments.first { it.name?.asString() == "target" }.value as KSType
         val paramsValue =
             annotation.arguments.firstOrNull { it.name?.asString() == "params" }?.value
+        val resultCodeValue = annotation.arguments.firstOrNull { it.name?.asString() == "resultCode" }?.value as? Int ?: 0
         val paramAnnotations = paramsValue as? List<KSAnnotation> ?: emptyList()
 
         val targetName = targetType.declaration.simpleName.asString()
@@ -119,7 +112,11 @@ class IntentProcessor(
                 // Create primary constructor
                 val primaryCtor = FunSpec.constructorBuilder()
                 (standardProps + nonNullableParams).forEach { (name, type) ->
-                    primaryCtor.addParameter(name, type)
+                    val paramBuilder = ParameterSpec.builder(name, type)
+                    if (name == "resultCode") {
+                        paramBuilder.defaultValue("%L", resultCodeValue)
+                    }
+                    primaryCtor.addParameter(paramBuilder.build())
                     addProperty(
                         PropertySpec.builder(name, type)
                             .initializer(name)
@@ -134,7 +131,8 @@ class IntentProcessor(
                 addType(buildCompanion(
                     pkg = pkg,
                     intentClassName = intentClassName,
-                    nonNullableParams = nonNullableParams
+                    nonNullableParams = nonNullableParams,
+                    resultCodeValue = resultCodeValue // add this param
                 ))
 
                 // Add nullable properties (default null)
@@ -192,6 +190,7 @@ class IntentProcessor(
                             buildGetDataHandlerCodeBlock(
                                 pkg = pkg,
                                 intentClassName = intentClassName,
+                                resultCodeValue = resultCodeValue,
                                 standardProps = standardProps,
                                 nonNullableParams = nonNullableParams,
                                 nullableParams = nullableParams,
@@ -215,7 +214,8 @@ class IntentProcessor(
     private fun buildCompanion(
         pkg: String,
         intentClassName: String,
-        nonNullableParams: List<Pair<String, TypeName>>
+        nonNullableParams: List<Pair<String, TypeName>>,
+        resultCodeValue: Int
     ): TypeSpec {
         return TypeSpec.companionObjectBuilder()
             .addFunction(
@@ -227,7 +227,7 @@ class IntentProcessor(
                             add("return %T(\n", ClassName(pkg, intentClassName))
                             add("    WeakReference(activity),\n")
                             add("    hasResultCode = false,\n")
-                            add("    resultCode = 0,\n")
+                            add("    resultCode = %L,\n", resultCodeValue)
                             add("    animate = false,\n")
                             add("    finish = false,\n")
                             add("    clearTop = false,\n")
@@ -260,6 +260,7 @@ class IntentProcessor(
     private fun buildGetDataHandlerCodeBlock(
         pkg: String,
         intentClassName: String,
+        resultCodeValue: Int,
         standardProps: List<Pair<String, TypeName>>,
         nonNullableParams: List<Pair<String, TypeName>>,
         nullableParams: List<Pair<String, TypeName>>,
@@ -307,7 +308,7 @@ class IntentProcessor(
 
                 val valueExpr = when {
                     name == "activity" -> "activity"
-                    name == "resultCode" -> "0"
+                    name == "resultCode" -> "$resultCodeValue"
                     name == "animate" -> "false"
                     name == "finish" -> "false"
                     name == "clearTop" -> "false"
