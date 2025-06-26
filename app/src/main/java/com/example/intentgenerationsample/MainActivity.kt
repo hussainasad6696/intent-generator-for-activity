@@ -41,7 +41,7 @@ data class Demi(val p1: String, val p2: Demi2): Parcelable
 )
 class MainActivity : AppCompatActivity() {
 
-    private val mIntentData: MainActivityIntent
+    private val mIntentData: MainActivityIntent = MainActivityIntent.default(this)
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
