@@ -332,7 +332,7 @@ class IntentProcessor(
                     method == "getShortExtra" -> "intent?.$method(\"$name\", 0.toShort()) ?: 0.toShort()"
                     method == "getByteExtra" -> "intent?.$method(\"$name\", 0.toByte()) ?: 0.toByte()"
                     method == "getCharExtra" -> "intent?.$method(\"$name\", '\\u0000') ?: '\\u0000'"
-                    method == "getStringExtra" -> "intent?.$method(\"$name\", \"\") ?: \"\""
+                    method == "getStringExtra" -> "intent?.$method(\"$name\") ?: \"\""
                     else -> "intent?.$method(\"$name\") as? $type"
                 }
 
