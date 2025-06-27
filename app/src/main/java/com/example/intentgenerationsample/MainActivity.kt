@@ -33,6 +33,7 @@ data class Demi(val p1: String, val p2: Demi2) : Parcelable
         Param("customParcelableList", ArrayList::class, Demi::class),
         Param("customParcelable", Demi::class),
         Param("intValue", Int::class),
+        Param("stringValue", String::class, isNullable = false),
         Param("longValue", Long::class),
         Param("floatValue", Float::class),
         Param("doubleValue", Double::class),
