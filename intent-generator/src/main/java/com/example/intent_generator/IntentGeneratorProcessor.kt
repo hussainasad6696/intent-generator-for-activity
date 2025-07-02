@@ -156,18 +156,39 @@ class IntentProcessor(
                 primaryConstructor(primaryCtor.build())
 
                 // Create secondary constructor
-                if (nullableParams.isNotEmpty()) {
+                if ((standardProps + nonNullableParams + nullableParams).isNotEmpty()) {
+                    val secondaryCtor = FunSpec.constructorBuilder()
+                    (standardProps + nonNullableParams + nullableParams)
+                        .filter { it.first != "activity" }
+                        .forEach { (name, type) ->
+                            val paramBuilder = ParameterSpec.builder(name, type)
+                            // Set default values
+                            val defaultValue = when {
+                                type.isNullable -> "null"
+                                type.toString().startsWith("kotlin.String") -> "\"\""
+                                type.toString().startsWith("kotlin.Boolean") -> "false"
+                                type.toString().startsWith("kotlin.Int") -> "0"
+                                type.toString().startsWith("kotlin.Long") -> "0L"
+                                type.toString().startsWith("kotlin.Float") -> "0f"
+                                type.toString().startsWith("kotlin.Double") -> "0.0"
+                                type.toString().startsWith("kotlin.Short") -> "0"
+                                type.toString().startsWith("kotlin.Byte") -> "0"
+                                type.toString().startsWith("kotlin.Char") -> "'\\u0000'"
+                                type is ParameterizedTypeName && type.rawType.simpleName == "ArrayList" -> "arrayListOf()"
+                                else -> "null"
+                            }
+                            paramBuilder.defaultValue(defaultValue)
+                            secondaryCtor.addParameter(paramBuilder.build())
+                        }
+//                    val callParams =
+//                        (standardProps + nonNullableParams).joinToString(", ") { it.first }
                     val codeBlock = CodeBlock.builder()
                     nullableParams.forEach { (name, _) ->
                         codeBlock.addStatement("this.%L = %L", name, name)
                     }
                     addFunction(
-                        FunSpec.constructorBuilder()
-                            .addParameters((standardProps + nonNullableParams + nullableParams).map { (name, type) ->
-                                ParameterSpec.builder(name, type).build()
-                            })
-                            .callThisConstructor(*(standardProps + nonNullableParams).map { it.first }
-                                .toTypedArray())
+                        secondaryCtor
+                            .callThisConstructor(*(standardProps + nonNullableParams).map { it.first }.toTypedArray())
                             .addCode(codeBlock.build())
                             .build()
                     )
@@ -330,9 +351,9 @@ class IntentProcessor(
                     method == "getFloatExtra" -> "intent?.$method(\"$name\", 0f) ?: 0f"
                     method == "getDoubleExtra" -> "intent?.$method(\"$name\", 0.0) ?: 0.0"
                     method == "getShortExtra" -> "intent?.$method(\"$name\", 0.toShort()) ?: 0.toShort()"
+                    method == "getStringExtra" -> "intent?.$method(\"$name\") ?: \"\""
                     method == "getByteExtra" -> "intent?.$method(\"$name\", 0.toByte()) ?: 0.toByte()"
                     method == "getCharExtra" -> "intent?.$method(\"$name\", '\\u0000') ?: '\\u0000'"
-                    method == "getStringExtra" -> "intent?.$method(\"$name\") ?: \"\""
                     else -> "intent?.$method(\"$name\") as? $type"
                 }
 
