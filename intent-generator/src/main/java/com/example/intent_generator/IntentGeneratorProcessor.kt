@@ -159,25 +159,26 @@ class IntentProcessor(
                 if ((standardProps + nonNullableParams + nullableParams).isNotEmpty()) {
                     val secondaryCtor = FunSpec.constructorBuilder()
                     (standardProps + nonNullableParams + nullableParams)
-                        .filter { it.first != "activity" }
                         .forEach { (name, type) ->
                             val paramBuilder = ParameterSpec.builder(name, type)
-                            // Set default values
-                            val defaultValue = when {
-                                type.isNullable -> "null"
-                                type.toString().startsWith("kotlin.String") -> "\"\""
-                                type.toString().startsWith("kotlin.Boolean") -> "false"
-                                type.toString().startsWith("kotlin.Int") -> "0"
-                                type.toString().startsWith("kotlin.Long") -> "0L"
-                                type.toString().startsWith("kotlin.Float") -> "0f"
-                                type.toString().startsWith("kotlin.Double") -> "0.0"
-                                type.toString().startsWith("kotlin.Short") -> "0"
-                                type.toString().startsWith("kotlin.Byte") -> "0"
-                                type.toString().startsWith("kotlin.Char") -> "'\\u0000'"
-                                type is ParameterizedTypeName && type.rawType.simpleName == "ArrayList" -> "arrayListOf()"
-                                else -> "null"
+                            // Only set default value if not "activity"
+                            if (name != "activity") {
+                                val defaultValue = when {
+                                    type.isNullable -> "null"
+                                    type.toString().startsWith("kotlin.String") -> "\"\""
+                                    type.toString().startsWith("kotlin.Boolean") -> "false"
+                                    type.toString().startsWith("kotlin.Int") -> "0"
+                                    type.toString().startsWith("kotlin.Long") -> "0L"
+                                    type.toString().startsWith("kotlin.Float") -> "0f"
+                                    type.toString().startsWith("kotlin.Double") -> "0.0"
+                                    type.toString().startsWith("kotlin.Short") -> "0"
+                                    type.toString().startsWith("kotlin.Byte") -> "0"
+                                    type.toString().startsWith("kotlin.Char") -> "'\\u0000'"
+                                    type is ParameterizedTypeName && type.rawType.simpleName == "ArrayList" -> "arrayListOf()"
+                                    else -> "null"
+                                }
+                                paramBuilder.defaultValue(defaultValue)
                             }
-                            paramBuilder.defaultValue(defaultValue)
                             secondaryCtor.addParameter(paramBuilder.build())
                         }
 //                    val callParams =
