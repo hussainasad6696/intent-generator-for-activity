@@ -62,7 +62,9 @@ class IntentProcessor(
             annotation.arguments.first { it.name?.asString() == "target" }.value as KSType
         val paramsValue =
             annotation.arguments.firstOrNull { it.name?.asString() == "params" }?.value
-        val resultCodeValue = annotation.arguments.firstOrNull { it.name?.asString() == "resultCode" }?.value as? Int ?: 0
+        val resultCodeValue =
+            annotation.arguments.firstOrNull { it.name?.asString() == "resultCode" }?.value as? Int
+                ?: 0
         val paramAnnotations = paramsValue as? List<KSAnnotation> ?: emptyList()
 
         val targetName = targetType.declaration.simpleName.asString()
@@ -136,12 +138,14 @@ class IntentProcessor(
                     )
                 }
 
-                addType(buildCompanion(
-                    pkg = pkg,
-                    intentClassName = intentClassName,
-                    nonNullableParams = nonNullableParams,
-                    resultCodeValue = resultCodeValue // add this param
-                ))
+                addType(
+                    buildCompanion(
+                        pkg = pkg,
+                        intentClassName = intentClassName,
+                        nonNullableParams = nonNullableParams,
+                        resultCodeValue = resultCodeValue // add this param
+                    )
+                )
 
                 // Add nullable properties (default null)
                 nullableParams.forEach { (name, type) ->
@@ -162,7 +166,7 @@ class IntentProcessor(
                         .forEach { (name, type) ->
                             val paramBuilder = ParameterSpec.builder(name, type)
                             // Only set default value if not "activity"
-                            if (name != "activity") {
+                            if (name != "activity" && nonNullableParams.map { it.first }.contains(name).not()) {
                                 val defaultValue = when {
                                     type.isNullable -> "null"
                                     type.toString().startsWith("kotlin.String") -> "\"\""
@@ -189,7 +193,8 @@ class IntentProcessor(
                     }
                     addFunction(
                         secondaryCtor
-                            .callThisConstructor(*(standardProps + nonNullableParams).map { it.first }.toTypedArray())
+                            .callThisConstructor(*(standardProps + nonNullableParams).map { it.first }
+                                .toTypedArray())
                             .addCode(codeBlock.build())
                             .build()
                     )
@@ -309,12 +314,22 @@ class IntentProcessor(
                     "java.util.ArrayList", "kotlin.collections.ArrayList"
                 ) -> {
                     when {
-                        qualifiedNameForTypeArg == "kotlin.Int" || qualifiedNameForTypeArg == "kotlin.Int?" || kotlinType == INT || kotlinType == INT.copy(nullable = true) -> "getIntegerArrayListExtra"
-                        qualifiedNameForTypeArg == "kotlin.String" || qualifiedNameForTypeArg == "kotlin.String?" || kotlinType == STRING || kotlinType == STRING.copy(nullable = true) -> "getStringArrayListExtra"
-                        qualifiedNameForTypeArg == "kotlin.CharSequence" || qualifiedNameForTypeArg == "kotlin.CharSequence?" || kotlinType == CHAR_SEQUENCE || kotlinType == CHAR_SEQUENCE.copy(nullable = true) -> "getCharSequenceArrayListExtra"
+                        qualifiedNameForTypeArg == "kotlin.Int" || qualifiedNameForTypeArg == "kotlin.Int?" || kotlinType == INT || kotlinType == INT.copy(
+                            nullable = true
+                        ) -> "getIntegerArrayListExtra"
+
+                        qualifiedNameForTypeArg == "kotlin.String" || qualifiedNameForTypeArg == "kotlin.String?" || kotlinType == STRING || kotlinType == STRING.copy(
+                            nullable = true
+                        ) -> "getStringArrayListExtra"
+
+                        qualifiedNameForTypeArg == "kotlin.CharSequence" || qualifiedNameForTypeArg == "kotlin.CharSequence?" || kotlinType == CHAR_SEQUENCE || kotlinType == CHAR_SEQUENCE.copy(
+                            nullable = true
+                        ) -> "getCharSequenceArrayListExtra"
+
                         else -> "getParcelableArrayListExtra<$qualifiedNameForTypeArg>"
                     }
                 }
+
                 type == STRING || type == STRING.copy(nullable = true) -> "getStringExtra"
                 type == BOOLEAN || type == BOOLEAN.copy(nullable = true) -> "getBooleanExtra"
                 type == INT || type == INT.copy(nullable = true) -> "getIntExtra"
@@ -346,6 +361,7 @@ class IntentProcessor(
                         val generic = method.substringAfter("<").substringBefore(">")
                         "intent?.getParcelableArrayListExtra<$generic>(\"$name\") ?: arrayListOf()"
                     }
+
                     method == "getBooleanExtra" -> "intent?.$method(\"$name\", false) ?: false"
                     method == "getIntExtra" -> "intent?.$method(\"$name\", 0) ?: 0"
                     method == "getLongExtra" -> "intent?.$method(\"$name\", 0L) ?: 0L"
