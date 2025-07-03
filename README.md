@@ -75,3 +75,16 @@ class TestActivity : AppCompatActivity() {
 
     }
 }
+
+
+tasks.register("myCustomTaskAfterKspLiveAppDebug") {
+    dependsOn("kspLiveAppDebugKotlin") // Or dependsOn("compileLiveAppDebugKotlin")
+    dependsOn("kspWithAdsAppDebugKotlin")
+    dependsOn("kspWithAdsAppReleaseKotlin")
+    dependsOn("kspLiveAppDebugKotlin")
+    dependsOn("kspLiveAppReleaseKotlin")
+    doLast {
+        println("KSP for LiveAppDebug has finished, now running my custom task.")
+        // Your custom logic here
+    }
+}
