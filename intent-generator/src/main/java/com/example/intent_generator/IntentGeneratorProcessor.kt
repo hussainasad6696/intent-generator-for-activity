@@ -238,7 +238,7 @@ class IntentProcessor(
         }.build()
 
         // Write to file
-        codeGen.createNewFile(Dependencies(false), pkg, intentClassName).also {
+        codeGen.createNewFile(Dependencies.ALL_FILES, pkg, intentClassName).also {
             OutputStreamWriter(it, Charsets.UTF_8).use { writer ->
                 fileSpec.writeTo(writer)
                 writer.flush()
