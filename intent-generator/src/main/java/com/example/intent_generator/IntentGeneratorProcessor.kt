@@ -472,7 +472,6 @@ class IntentProcessor(
                         logger.info("✅ Selected putExtra method: $it")
                     }
                 }
-
                 val putExtraMethod = when {
                     ksType.declaration.qualifiedName?.asString() in listOf(
                         "java.util.ArrayList",
