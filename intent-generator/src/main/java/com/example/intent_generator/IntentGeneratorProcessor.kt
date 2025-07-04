@@ -160,7 +160,8 @@ class IntentProcessor(
                 primaryConstructor(primaryCtor.build())
 
                 // Create secondary constructor
-                if ((standardProps + nonNullableParams + nullableParams).isNotEmpty()) {
+                // Only create secondary constructor if there are nullable params
+                if (nullableParams.isNotEmpty()) {
                     val secondaryCtor = FunSpec.constructorBuilder()
                     (standardProps + nonNullableParams + nullableParams)
                         .forEach { (name, type) ->
@@ -185,8 +186,6 @@ class IntentProcessor(
                             }
                             secondaryCtor.addParameter(paramBuilder.build())
                         }
-//                    val callParams =
-//                        (standardProps + nonNullableParams).joinToString(", ") { it.first }
                     val codeBlock = CodeBlock.builder()
                     nullableParams.forEach { (name, _) ->
                         codeBlock.addStatement("this.%L = %L", name, name)
@@ -422,7 +421,7 @@ class IntentProcessor(
     private fun buildIntentBlock(targetName: String, params: List<KSAnnotation>) =
         CodeBlock.builder().apply {
             add(
-                "return activity.get()?.let { Intent(activity.get(), %L::class.java).apply {\n",
+                "return activity.get()?.let { \n Intent(activity.get(), %L::class.java).apply { \n",
                 targetName
             )
 
@@ -472,6 +471,7 @@ class IntentProcessor(
                         logger.info("✅ Selected putExtra method: $it")
                     }
                 }
+
                 val putExtraMethod = when {
                     ksType.declaration.qualifiedName?.asString() in listOf(
                         "java.util.ArrayList",
