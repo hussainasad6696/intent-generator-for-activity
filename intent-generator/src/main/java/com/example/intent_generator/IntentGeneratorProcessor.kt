@@ -33,7 +33,6 @@ import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.UNIT
 import com.squareup.kotlinpoet.ksp.toTypeName
-import java.io.File
 import java.io.OutputStreamWriter
 
 //./gradlew assembleDebug
@@ -52,6 +51,7 @@ class IntentProcessor(
                 logger.info("Present in intent processor forEach $classDecl")
                 generateClass(classDecl)
             }
+        logger.warn("🛠️ IntentProcessor is completed...")
         return emptyList()
     }
 
@@ -80,7 +80,8 @@ class IntentProcessor(
             "resultCode" to INT,
             "animate" to BOOLEAN,
             "finish" to BOOLEAN,
-            "clearTop" to BOOLEAN.copy(nullable = true)
+            "clearTop" to BOOLEAN,
+            "newTask" to BOOLEAN
         )
 
         // Separate nullable and non-nullable intent params
@@ -117,14 +118,12 @@ class IntentProcessor(
                     val paramBuilder = ParameterSpec.builder(name, type)
                     if (name == "resultCode")
                         paramBuilder.defaultValue("%L", resultCodeValue)
-                    if (name == "hasResultCode")
+                    if (
+                        name == "hasResultCode" || name == "animate" ||
+                        name == "finish" || name == "clearTop" ||
+                        name == "newTask"
+                    )
                         paramBuilder.defaultValue("%L", false)
-                    if (name == "animate")
-                        paramBuilder.defaultValue("%L", false)
-                    if (name == "finish")
-                        paramBuilder.defaultValue("%L", false)
-                    if (name == "clearTop")
-                        paramBuilder.defaultValue("%L", null)
 
                     primaryCtor.addParameter(paramBuilder.build())
                     addProperty(
@@ -167,7 +166,8 @@ class IntentProcessor(
                         .forEach { (name, type) ->
                             val paramBuilder = ParameterSpec.builder(name, type)
                             // Only set default value if not "activity"
-                            if (name != "activity" && nonNullableParams.map { it.first }.contains(name).not()) {
+                            if (name != "activity" && nonNullableParams.map { it.first }
+                                    .contains(name).not()) {
                                 val defaultValue = when {
                                     type.isNullable -> "null"
                                     type.toString().startsWith("kotlin.String") -> "\"\""
@@ -265,6 +265,7 @@ class IntentProcessor(
                             add("    animate = false,\n")
                             add("    finish = false,\n")
                             add("    clearTop = false,\n")
+                            add("    newTask = false,\n")
                             // Add default values for non-nullable params
                             nonNullableParams.forEach { (name, type) ->
                                 val defaultValue = when {
@@ -356,6 +357,7 @@ class IntentProcessor(
                     name == "animate" -> "false"
                     name == "finish" -> "false"
                     name == "clearTop" -> "false"
+                    name == "newTask" -> "false"
                     method.startsWith("getParcelableArrayListExtra") -> {
                         val generic = method.substringAfter("<").substringBefore(">")
                         "intent?.getParcelableArrayListExtra<$generic>(\"$name\") ?: arrayListOf()"
@@ -388,16 +390,24 @@ class IntentProcessor(
                         "intent?.getParcelableArrayListExtra<$generic>(\"$name\")"
                     }
 
-                    method == "getBooleanExtra" -> "intent?.getBooleanExtra(\"$name\", false) ?: false"
-                    method == "getIntExtra" -> "intent?.getIntExtra(\"$name\", 0) ?: 0"
-                    method == "getLongExtra" -> "intent?.getLongExtra(\"$name\", 0L) ?: 0L"
-                    method == "getFloatExtra" -> "intent?.getFloatExtra(\"$name\", 0f) ?: 0f"
-                    method == "getDoubleExtra" -> "intent?.getDoubleExtra(\"$name\", 0.0) ?: 0.0"
-                    method == "getShortExtra" -> "intent?.getShortExtra(\"$name\", 0) ?: 0"
-                    method == "getByteExtra" -> "intent?.getByteExtra(\"$name\", 0) ?: 0"
-                    method == "getCharExtra" -> "intent?.getCharExtra(\"$name\", '\\u0000') ?: '\\u0000'"
-                    method == "getStringExtra" -> "intent?.$method(\"$name\") ?: \"\""
-                    method == "getSerializableExtra" -> "intent?.$method(\"$name\") as? $type"
+                    method == "getSerializableExtra" -> """
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                                   intent?.getParcelableExtra("$name", ${type.copy(nullable = false)}::class.java)
+                            } else {
+                                    @Suppress("DEPRECATION")
+                                    intent?.getParcelableExtra("$name")
+                            }
+                     """.trimIndent()
+
+                    method == "getBooleanExtra" -> "intent?.getBooleanExtra(\"$name\", false)"
+                    method == "getIntExtra" -> "intent?.getIntExtra(\"$name\", 0)"
+                    method == "getLongExtra" -> "intent?.getLongExtra(\"$name\", 0L)"
+                    method == "getFloatExtra" -> "intent?.getFloatExtra(\"$name\", 0f)"
+                    method == "getDoubleExtra" -> "intent?.getDoubleExtra(\"$name\", 0.0)"
+                    method == "getShortExtra" -> "intent?.getShortExtra(\"$name\", 0)"
+                    method == "getByteExtra" -> "intent?.getByteExtra(\"$name\", 0)"
+                    method == "getCharExtra" -> "intent?.getCharExtra(\"$name\", '\\u0000')"
+                    method == "getStringExtra" -> "intent?.$method(\"$name\")"
                     else -> "intent?.$method(\"$name\")"
                 }
 
@@ -421,7 +431,7 @@ class IntentProcessor(
     private fun buildIntentBlock(targetName: String, params: List<KSAnnotation>) =
         CodeBlock.builder().apply {
             add(
-                "return activity.get()?.let { \n Intent(activity.get(), %L::class.java).apply { \n",
+                "return activity.get()?.let { \n Intent(it, %L::class.java).apply { \n",
                 targetName
             )
 

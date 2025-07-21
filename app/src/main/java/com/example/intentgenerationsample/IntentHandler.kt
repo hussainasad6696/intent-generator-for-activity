@@ -6,19 +6,23 @@ import android.content.Intent
 import android.os.Build
 import android.util.Log
 import androidx.annotation.ChecksSdkIntAtLeast
+import androidx.annotation.Keep
 import java.lang.ref.WeakReference
 import kotlin.reflect.KProperty1
 
+@Keep
 interface IntentFactory {
     val activity: WeakReference<Activity>
     val hasResultCode: Boolean
     val resultCode: Int
     val animate: Boolean
     val finish: Boolean
-    val clearTop: Boolean?
+    val clearTop: Boolean
+    val newTask: Boolean
     val intent: Intent
 }
 
+@Keep
 abstract class IntentHandler : IntentFactory {
     protected val TAG = this::class.simpleName
 
@@ -35,17 +39,19 @@ abstract class IntentHandler : IntentFactory {
     open fun getDataHandler(intent: Intent? = null): IntentHandler = this
     open fun setIntentResultListener(intentResultHandler: IntentResultHandler) {}
 
-    fun  safeIntent(): Intent? = runCatching {
+    fun safeIntent(): Intent? = runCatching {
         Log.i(TAG, "safeIntent: ${toString()}")
         intent
     }.getOrNull()
 
-    fun returnWithResult(resultCode: Int) {
-        Log.i(TAG, "safeIntent: ${toString()}")
+    fun returnWithResult(code: Int? = null) {
+        val intentResultCode = code ?: this.resultCode
+
+        Log.i(TAG, "code == $intentResultCode :: returnWithResult: ${toString()}")
 
         try {
             val activity = activity.get() ?: return
-            activity.setResult(resultCode, intent)
+            activity.setResult(intentResultCode, intent)
 
             if (finish) activity.finish()
             if (animate) activity.animateActivity()
@@ -57,24 +63,24 @@ abstract class IntentHandler : IntentFactory {
     }
 
     fun startActivity() {
-        Log.i(TAG, "safeIntent: ${toString()}")
+        Log.i(TAG, "startActivity: finish $finish == ${toString()}")
 
         try {
             val activity = activity.get() ?: return
 
-            if (finish) activity.finish()
-
             val modifiedIntent = intent
 
-            clearTop?.let {
-                modifiedIntent.flags =
-                    if (it) Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                    else Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            }
+            if (clearTop)
+                modifiedIntent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+
+            if (newTask)
+                modifiedIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
 
             if (hasResultCode)
                 activity.startActivityForResult(modifiedIntent, resultCode)
-            else activity.startActivity(modifiedIntent)
+            else activity.startActivity(modifiedIntent.also { Log.i(TAG, "startActivity intent: ${it.extras}") })
+
+            if (finish) activity.finish()
 
             if (animate)
                 activity.animateActivity(false)
@@ -91,12 +97,12 @@ abstract class IntentHandler : IntentFactory {
         val sb = StringBuilder()
 
         val kClass = this::class
-        val properties = kClass.members.filterIsInstance<KProperty1<Any, *>>()
+        val properties = kClass.members.filterIsInstance<kotlin.reflect.KProperty1<Any, *>>()
 
         sb.append("\n===================================================================")
         sb.append("\n===========================IntentHandler===========================")
         sb.append("\n===============================Start===============================")
-        sb.append("${kClass.simpleName}:\n")
+        sb.append("\n\n${kClass.simpleName}:\n\n")
         for (prop in properties) {
             try {
                 sb.append("${prop.name}: == ${prop.get(this)}\n")
