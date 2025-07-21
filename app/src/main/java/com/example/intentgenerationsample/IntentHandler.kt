@@ -21,7 +21,6 @@ interface IntentFactory {
     val newTask: Boolean
     val intent: Intent
 }
-
 @Keep
 abstract class IntentHandler : IntentFactory {
     protected val TAG = this::class.simpleName
