@@ -90,7 +90,7 @@ class IntentBlockBuilder(private val logger: KSPLogger) {
                 }
             }
 
-            add("} \n } ?: throw pdfreader.pdfviewer.officetool.pdfscanner.views.activities.intents.ActivityReferenceEmptyException()\n")
+            add("} \n } ?: throw com.example.intentgenerationsample.ActivityReferenceEmptyException()\n")
         }.build()
     }
 }

@@ -23,7 +23,6 @@ data class Demi2(val p1: String, val p2: Int) : Parcelable
 data class Demi(val p1: String, val p2: Demi2) : Parcelable
 
 @GenerateIntent(
-    target = MainActivity::class,
     resultCode = 1002,
     params = [
         Param("intList", ArrayList::class, Int::class),
@@ -77,7 +76,6 @@ class MainActivity : AppCompatActivity() {
 }
 
 @GenerateIntent(
-    target = TestActivity::class,
     params = [
         Param("uriList", ArrayList::class, isNullable = false, typeArg = Uri::class),
         Param("toolType", String::class),
@@ -101,7 +99,6 @@ class TestActivity : AppCompatActivity() {
 }
 
 @GenerateIntent(
-    target = DemiActivity::class,
     params = [
         Param("uriList", ArrayList::class, isNullable = false, typeArg = Uri::class),
         Param("isFromPDFView", Boolean::class)

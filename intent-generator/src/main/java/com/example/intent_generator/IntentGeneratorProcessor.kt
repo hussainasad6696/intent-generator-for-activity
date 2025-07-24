@@ -118,7 +118,7 @@ class IntentProcessor(
                     addType(TypeSpec.classBuilder(annotationFunctionBuilder.className).apply {
                         superclass(
                             ClassName(
-                                "pdfreader.pdfviewer.officetool.pdfscanner.views.activities.intents",
+                                "com.example.intentgenerationsample",
                                 "IntentHandler"
                             )
                         )
