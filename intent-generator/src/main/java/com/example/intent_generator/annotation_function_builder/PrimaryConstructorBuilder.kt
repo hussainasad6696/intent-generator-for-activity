@@ -17,7 +17,7 @@ class PrimaryConstructorBuilder(private val pkg: String, private val intentClass
         nullableParams: List<IntentParam>,
         resultCodeValue: Int,
         companionBuilder: CompanionBuilder,
-        resolveDefaultValue: (type: TypeName, param: String) -> String
+        resolveDefaultValue: (type: TypeName, param: String, from: String) -> String
     ): FunSpec.Builder {
         val primaryCtor = FunSpec.constructorBuilder()
 
@@ -29,7 +29,8 @@ class PrimaryConstructorBuilder(private val pkg: String, private val intentClass
                 if (intentParam.type == STRING) "\"${intentParam.defaultValue}\"" else intentParam.defaultValue
             val resolvedDefault = resolveDefaultValue(
                 intentParam.type,
-                param
+                param,
+                "PrimaryConstructorBuilder"
             )
 
             if (intentParam.name != "activity" && intentParam.name != "resultCode")

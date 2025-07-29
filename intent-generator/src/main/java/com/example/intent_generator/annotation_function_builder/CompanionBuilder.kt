@@ -15,7 +15,7 @@ class CompanionBuilder {
         intentClassName: String,
         nonNullableParams: List<IntentParam>,
         resultCodeValue: Int,
-        resolveDefaultValue: (type: TypeName, name: String) -> String
+        resolveDefaultValue: (type: TypeName, name: String, from: String) -> String
     ): TypeSpec {
         return TypeSpec.companionObjectBuilder()
             .addFunction(
@@ -34,10 +34,7 @@ class CompanionBuilder {
                             add("    newTask = false,\n")
                             // Add default values for non-nullable params
                             nonNullableParams.forEach { (name, type, _, defaultValue) ->
-                                val param =
-                                    if (type == STRING) "\"${defaultValue}\"" else defaultValue
-
-                                val defaultValue = resolveDefaultValue(type, param)
+                                val defaultValue = resolveDefaultValue(type, defaultValue, "Companion")
 
                                 add("    %L = %L,\n", name, defaultValue)
                             }

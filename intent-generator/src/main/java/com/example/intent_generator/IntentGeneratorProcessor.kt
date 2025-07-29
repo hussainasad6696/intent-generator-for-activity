@@ -116,6 +116,20 @@ class IntentProcessor(
             FileSpec.builder(annotationFunctionBuilder.pkg, annotationFunctionBuilder.className)
                 .apply {
                     addType(TypeSpec.classBuilder(annotationFunctionBuilder.className).apply {
+
+                        addKdoc(
+                            "${annotationFunctionBuilder.className} deals with intent handling so that the developer " +
+                                    "can know which values are must for the activity" +
+                                    " to function and which are optional. " +
+                                    "Where parameters like \n@param activity: Required weak reference to the activity," +
+                                    "\n@param hasResultCode: if the activity has a result code or not so deal with starting activity as per the result code," +
+                                    "\n@param resultCode: the actual result code," +
+                                    "\n@param animate: if the activity has to be animated," +
+                                    "\n@param finish: if the current activity has to be finished or not," +
+                                    "\n@param clearTop: clear to the top of next activity," +
+                                    "\n@param newTask: start a new task"
+                        )
+
                         superclass(
                             ClassName(
                                 "com.example.intentgenerationsample",
@@ -144,12 +158,10 @@ class IntentProcessor(
                             val paramBuilder =
                                 ParameterSpec.builder(intentParam.name, intentParam.type)
 
-                            val param =
-                                if (intentParam.type == STRING) "\"${intentParam.defaultValue}\"" else intentParam.defaultValue
-
                             val resolvedDefault = annotationFunctionBuilder.resolveDefaultValue(
                                 type = intentParam.type,
-                                default = param
+                                default = intentParam.defaultValue,
+                                from = "PrimaryConstructor"
                             )
 
                             if (intentParam.name != "activity" && intentParam.name != "resultCode")
@@ -181,12 +193,11 @@ class IntentProcessor(
 
                         // Add nullable properties (default null)
                         nullableParams.forEach { (name, type, _, defaultValue) ->
-                            val param = if (type == STRING || type == STRING.copy(nullable = true)
-                            ) "\"${defaultValue}\"" else defaultValue
-
                             addProperty(
                                 PropertySpec.builder(name, type)
-                                    .initializer(param.takeIf { it.isNotEmpty() } ?: "null")
+                                    .initializer(defaultValue.takeIf { it.isNotEmpty() }?.let {
+                                        annotationFunctionBuilder.resolveDefaultValue(type, it, "Properties")
+                                    } ?: "null")
                                     .mutable(true)
                                     .build()
                             )
@@ -202,14 +213,19 @@ class IntentProcessor(
                                 .forEach { (name, type, _, default) ->
                                     val paramBuilder = ParameterSpec.builder(name, type)
                                     // Only set default value if not "activity"
-                                    val param = if (type == STRING || type == STRING.copy(nullable = true))
-                                        "\"${default}\"" else default
+                                    val defaultValue =
+                                        annotationFunctionBuilder.resolveDefaultValue(
+                                            default = default,
+                                            type = type,
+                                            from = "SecondaryConstructorBuilder"
+                                        )
 
-                                    val defaultValue = annotationFunctionBuilder.resolveDefaultValue(default = param, type = type)
-
-                                    if (name != "activity" && nonNullableParams.map { it.name }.contains(name).not())
+                                    if (name != "activity" && nonNullableParams.map { it.name }
+                                            .contains(name).not())
                                         paramBuilder.defaultValue(defaultValue)
-                                    else if (default.isNotEmpty()) paramBuilder.defaultValue(defaultValue)
+                                    else if (default.isNotEmpty()) paramBuilder.defaultValue(
+                                        defaultValue
+                                    )
 
                                     secondaryCtor.addParameter(paramBuilder.build())
                                 }

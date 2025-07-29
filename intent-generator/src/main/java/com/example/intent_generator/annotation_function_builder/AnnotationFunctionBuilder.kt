@@ -22,8 +22,11 @@ class AnnotationFunctionBuilder(
     val className: String
 ) {
 
-    fun resolveDefaultValue(type: TypeName, default: String): String {
-        if (default.isNotEmpty()) return default
+    fun resolveDefaultValue(type: TypeName, default: String, from: String): String {
+        logger.warn("Present in resolveDefaultValue type $type == default $default from $from")
+        if (default.isNotEmpty() and default.isNotBlank()) return if (type == STRING || type == STRING.copy(nullable = true))
+            "\"$default\""
+        else default
         return when {
             type.isNullable -> "null"
             type == STRING || type == STRING.copy(nullable = true) -> "\"\""
@@ -90,13 +93,14 @@ class AnnotationFunctionBuilder(
         )
     }
 
-    fun secondaryConstructorBuilder(
-        modifiedStandardProps: List<IntentParam>,
-        nonNullableParams: List<IntentParam>,
-        nullableParams: List<IntentParam>
-    ) = SecondaryConstructorBuilder().invoke(
-        modifiedStandardProps = modifiedStandardProps,
-        nonNullableParams = nonNullableParams,
-        nullableParams = nullableParams
-    )
+//    fun secondaryConstructorBuilder(
+//        modifiedStandardProps: List<IntentParam>,
+//        nonNullableParams: List<IntentParam>,
+//        nullableParams: List<IntentParam>
+//    ) = SecondaryConstructorBuilder().invoke(
+//        modifiedStandardProps = modifiedStandardProps,
+//        nonNullableParams = nonNullableParams,
+//        nullableParams = nullableParams,
+//        resolveDefaultValue = ::resolveDefaultValue
+//    )
 }

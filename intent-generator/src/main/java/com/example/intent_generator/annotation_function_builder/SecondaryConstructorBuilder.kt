@@ -6,13 +6,15 @@ import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.ParameterSpec
 import com.squareup.kotlinpoet.ParameterizedTypeName
 import com.squareup.kotlinpoet.STRING
+import com.squareup.kotlinpoet.TypeName
 
 class SecondaryConstructorBuilder {
 
     operator fun invoke(
         modifiedStandardProps: List<IntentParam>,
         nonNullableParams: List<IntentParam>,
-        nullableParams: List<IntentParam>
+        nullableParams: List<IntentParam>,
+        resolveDefaultValue: (type: TypeName, param: String) -> String
     ): FunSpec {
         val secondaryCtor = FunSpec.constructorBuilder()
         (modifiedStandardProps + nonNullableParams + nullableParams)
@@ -26,57 +28,9 @@ class SecondaryConstructorBuilder {
                             .startsWith("kotlin.String") || type.toString()
                             .startsWith("kotlin.String?")
                     ) "\"${default}\"" else default
-                    val defaultType = param.takeIf { it.isNotEmpty() }
 
-                    val defaultValue = when {
-                        type.isNullable -> "null"
-                        type.toString()
-                            .startsWith("kotlin.String") -> "\"${defaultType}\""
-                            ?: "\"\""
+                    val defaultValue = resolveDefaultValue(type, param)
 
-                        type.toString()
-                            .startsWith("kotlin.Boolean") -> runCatching {
-                            defaultType?.toBoolean()?.toString()
-                        }.getOrNull() ?: "false"
-
-                        type.toString()
-                            .startsWith("kotlin.Int") -> runCatching {
-                            defaultType?.toInt()?.toString()
-                        }.getOrNull() ?: "0"
-
-                        type.toString()
-                            .startsWith("kotlin.Long") -> runCatching {
-                            defaultType?.toLong()?.toString()
-                        }.getOrNull() ?: "0L"
-
-                        type.toString()
-                            .startsWith("kotlin.Float") -> runCatching {
-                            defaultType?.toFloat()?.toString()
-                        }.getOrNull() ?: "0f"
-
-                        type.toString()
-                            .startsWith("kotlin.Double") -> runCatching {
-                            defaultType?.toDouble()?.toString()
-                        }.getOrNull() ?: "0.0"
-
-                        type.toString()
-                            .startsWith("kotlin.Short") -> runCatching {
-                            defaultType?.toShort()?.toString()
-                        }.getOrNull() ?: "0"
-
-                        type.toString()
-                            .startsWith("kotlin.Byte") -> runCatching {
-                            defaultType?.toByte()?.toString()
-                        }.getOrNull() ?: "0"
-
-                        type.toString()
-                            .startsWith("kotlin.Char") -> runCatching {
-                            defaultType?.toCharArray()?.getOrNull(0)?.toString()
-                        }.getOrNull() ?: "'\\u0000'"
-
-                        type is ParameterizedTypeName && type.rawType.simpleName == "ArrayList" -> "arrayListOf()"
-                        else -> "null"
-                    }
                     paramBuilder.defaultValue(defaultValue)
                 }
                 secondaryCtor.addParameter(paramBuilder.build())
