@@ -22,7 +22,6 @@ import com.squareup.kotlinpoet.ParameterSpec
 import com.squareup.kotlinpoet.ParameterizedTypeName
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.PropertySpec
-import com.squareup.kotlinpoet.STRING
 import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.UNIT
@@ -115,176 +114,100 @@ class IntentProcessor(
         val fileSpec =
             FileSpec.builder(annotationFunctionBuilder.pkg, annotationFunctionBuilder.className)
                 .apply {
-                    addType(TypeSpec.classBuilder(annotationFunctionBuilder.className).apply {
-
-                        addKdoc(
-                            "${annotationFunctionBuilder.className} deals with intent handling so that the developer " +
-                                    "can know which values are must for the activity" +
-                                    " to function and which are optional. " +
-                                    "Where parameters like \n@param activity: Required weak reference to the activity," +
-                                    "\n@param hasResultCode: if the activity has a result code or not so deal with starting activity as per the result code," +
-                                    "\n@param resultCode: the actual result code," +
-                                    "\n@param animate: if the activity has to be animated," +
-                                    "\n@param finish: if the current activity has to be finished or not," +
-                                    "\n@param clearTop: clear to the top of next activity," +
-                                    "\n@param newTask: start a new task"
-                        )
-
-                        superclass(
-                            ClassName(
-                                "com.example.intentgenerationsample",
-                                "IntentHandler"
-                            )
-                        )
-
-                        // Create primary constructor
-                        val primaryCtor = FunSpec.constructorBuilder()
-
-                        val modifiedStandardProps = standardProps.map { (name, typeName) ->
-                            val default = if (
-                                name == "hasResultCode" || name == "animate" ||
-                                name == "finish" || name == "clearTop" || name == "newTask"
-                            ) "false" else ""
-
-                            IntentParam(
-                                name = name,
-                                type = typeName,
-                                isNullable = false,
-                                defaultValue = default
-                            )
-                        }
-
-                        (modifiedStandardProps + nonNullableParams).forEach { intentParam ->
-                            val paramBuilder =
-                                ParameterSpec.builder(intentParam.name, intentParam.type)
-
-                            val resolvedDefault = annotationFunctionBuilder.resolveDefaultValue(
-                                type = intentParam.type,
-                                default = intentParam.defaultValue,
-                                from = "PrimaryConstructor"
+                    addType(
+                        TypeSpec.classBuilder(annotationFunctionBuilder.className).apply typeSpec@{
+                            addKdoc(
+                                "${annotationFunctionBuilder.className} deals with intent handling so that the developer " +
+                                        "can know which values are must for the activity" +
+                                        " to function and which are optional. " +
+                                        "Where parameters like \n@param activity: Required weak reference to the activity," +
+                                        "\n@param hasResultCode: if the activity has a result code or not so deal with starting activity as per the result code," +
+                                        "\n@param resultCode: the actual result code," +
+                                        "\n@param animate: if the activity has to be animated," +
+                                        "\n@param finish: if the current activity has to be finished or not," +
+                                        "\n@param clearTop: clear to the top of next activity," +
+                                        "\n@param newTask: start a new task"
                             )
 
-                            if (intentParam.name != "activity" && intentParam.name != "resultCode")
-                                paramBuilder.defaultValue(resolvedDefault)
-
-                            if (intentParam.name == "resultCode")
-                                paramBuilder.defaultValue("%L", resultCodeValue)
-
-                            primaryCtor.addParameter(paramBuilder.build())
-                            addProperty(
-                                PropertySpec.builder(intentParam.name, intentParam.type)
-                                    .initializer(intentParam.name)
-                                    .apply {
-                                        if (standardProps.any { it.first == intentParam.name }) addModifiers(
-                                            KModifier.OVERRIDE
-                                        )
-                                        else mutable(true)
-                                    }
-                                    .build()
+                            superclass(
+                                ClassName(
+                                    "com.example.intentgenerationsample",
+                                    "IntentHandler"
+                                )
                             )
-                        }
 
-                        addType(
-                            annotationFunctionBuilder.companionBuilder(
-                                nonNullableParams = nonNullableParams,
-                                resultCodeValue = resultCodeValue
-                            )
-                        )
+                            val modifiedStandardProps = standardProps.map { (name, typeName) ->
+                                val default = if (
+                                    name == "hasResultCode" || name == "animate" ||
+                                    name == "finish" || name == "clearTop" || name == "newTask"
+                                ) "false" else ""
 
-                        // Add nullable properties (default null)
-                        nullableParams.forEach { (name, type, _, defaultValue) ->
-                            addProperty(
-                                PropertySpec.builder(name, type)
-                                    .initializer(defaultValue.takeIf { it.isNotEmpty() }?.let {
-                                        annotationFunctionBuilder.resolveDefaultValue(type, it, "Properties")
-                                    } ?: "null")
-                                    .mutable(true)
-                                    .build()
-                            )
-                        }
-
-                        primaryConstructor(primaryCtor.build())
-
-                        // Create secondary constructor
-                        // Only create secondary constructor if there are nullable params
-                        if (nullableParams.isNotEmpty()) {
-                            val secondaryCtor = FunSpec.constructorBuilder()
-                            (modifiedStandardProps + nonNullableParams + nullableParams)
-                                .forEach { (name, type, _, default) ->
-                                    val paramBuilder = ParameterSpec.builder(name, type)
-                                    // Only set default value if not "activity"
-                                    val defaultValue =
-                                        annotationFunctionBuilder.resolveDefaultValue(
-                                            default = default,
-                                            type = type,
-                                            from = "SecondaryConstructorBuilder"
-                                        )
-
-                                    if (name != "activity" && nonNullableParams.map { it.name }
-                                            .contains(name).not())
-                                        paramBuilder.defaultValue(defaultValue)
-                                    else if (default.isNotEmpty()) paramBuilder.defaultValue(
-                                        defaultValue
-                                    )
-
-                                    secondaryCtor.addParameter(paramBuilder.build())
-                                }
-                            val codeBlock = CodeBlock.builder()
-                            nullableParams.forEach { (name, _) ->
-                                codeBlock.addStatement("this.%L = %L", name, name)
+                                IntentParam(
+                                    name = name,
+                                    type = typeName,
+                                    isNullable = false,
+                                    defaultValue = default
+                                )
                             }
-                            addFunction(
-                                secondaryCtor
-                                    .callThisConstructor(*(modifiedStandardProps + nonNullableParams).map { it.name }
-                                        .toTypedArray())
-                                    .addCode(codeBlock.build())
+
+                            // Create primary constructor
+                            this@typeSpec.primaryConstructor(
+                                annotationFunctionBuilder.primaryConstructor(
+                                    modifiedStandardProps = modifiedStandardProps,
+                                    nonNullableParams = nonNullableParams,
+                                    nullableParams = nullableParams,
+                                    resultCodeValue = resultCodeValue,
+                                    typeSpecs = this@typeSpec
+                                )
+                            )
+
+                            addType(
+                                annotationFunctionBuilder.companionBuilder(
+                                    nonNullableParams = nonNullableParams,
+                                    resultCodeValue = resultCodeValue
+                                )
+                            )
+
+                            // Create secondary constructor
+                            // Only create secondary constructor if there are nullable params
+                            if (nullableParams.isNotEmpty()) {
+                                addFunction(
+                                    annotationFunctionBuilder.secondaryConstructorBuilder(
+                                        modifiedStandardProps = modifiedStandardProps,
+                                        nonNullableParams = nonNullableParams,
+                                        nullableParams = nullableParams
+                                    )
+                                )
+                            }
+
+                            // Add intent property with override
+                            addProperty(
+                                PropertySpec.builder(
+                                    "intent",
+                                    ClassName("android.content", "Intent")
+                                )
+                                    .addModifiers(KModifier.OVERRIDE)
+                                    .getter(
+                                        annotationFunctionBuilder.intentBlockBuilder(
+                                            targetName,
+                                            paramAnnotations
+                                        )
+                                    )
                                     .build()
                             )
-                        }
 
-                        // Add intent property with override
-                        addProperty(
-                            PropertySpec.builder("intent", ClassName("android.content", "Intent"))
-                                .addModifiers(KModifier.OVERRIDE)
-                                .getter(
-                                    FunSpec.getterBuilder()
-                                        .addCode(
-                                            annotationFunctionBuilder.intentBlockBuilder(
-                                                targetName,
-                                                paramAnnotations
-                                            )
-                                        )
-                                        .build()
+                            // === Add getDataHandler function ===
+                            addFunction(
+                                annotationFunctionBuilder.getDataHandlerBuilder(
+                                    resultCodeValue = resultCodeValue,
+                                    standardProps = modifiedStandardProps,
+                                    nonNullableParams = nonNullableParams,
+                                    nullableParams = nullableParams,
+                                    paramAnnotations = paramAnnotations
                                 )
-                                .build()
-                        )
-
-                        // === Add getDataHandler function ===
-                        addFunction(
-                            FunSpec.builder("getDataHandler")
-                                .addModifiers(KModifier.OVERRIDE)
-                                .addParameter(
-                                    "intent",
-                                    ClassName("android.content", "Intent").copy(nullable = true)
-                                )
-                                .returns(
-                                    ClassName(
-                                        annotationFunctionBuilder.pkg,
-                                        annotationFunctionBuilder.className
-                                    )
-                                )
-                                .addCode(
-                                    annotationFunctionBuilder.getDataHandlerBuilder(
-                                        resultCodeValue = resultCodeValue,
-                                        standardProps = modifiedStandardProps,
-                                        nonNullableParams = nonNullableParams,
-                                        nullableParams = nullableParams,
-                                        paramAnnotations = paramAnnotations
-                                    )
-                                )
-                                .build()
-                        )
-                    }.build())
+                            )
+                        }.build()
+                    )
                 }.build()
 
         // Write to file

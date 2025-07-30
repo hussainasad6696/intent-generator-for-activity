@@ -1,21 +1,21 @@
 package com.example.intent_generator.annotation_function_builder
 
 import com.example.intent_generator.IntentParam
+import com.google.devtools.ksp.processing.KSPLogger
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FunSpec
-import com.squareup.kotlinpoet.STRING
 import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.TypeSpec
 
-class CompanionBuilder {
+class CompanionBuilder(private val logger: KSPLogger) {
 
     operator fun invoke(
         pkg: String,
         intentClassName: String,
         nonNullableParams: List<IntentParam>,
         resultCodeValue: Int,
-        resolveDefaultValue: (type: TypeName, name: String, from: String) -> String
+        resolveDefaultValue: (type: TypeName, name: String) -> String
     ): TypeSpec {
         return TypeSpec.companionObjectBuilder()
             .addFunction(
@@ -34,7 +34,8 @@ class CompanionBuilder {
                             add("    newTask = false,\n")
                             // Add default values for non-nullable params
                             nonNullableParams.forEach { (name, type, _, defaultValue) ->
-                                val defaultValue = resolveDefaultValue(type, defaultValue, "Companion")
+                                val defaultValue = resolveDefaultValue(type, defaultValue)
+                                logger.info("CompanionBuilder: resolvedDefault $defaultValue")
 
                                 add("    %L = %L,\n", name, defaultValue)
                             }

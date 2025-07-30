@@ -1,14 +1,16 @@
 package com.example.intent_generator.annotation_function_builder
 
 import com.example.intent_generator.IntentParam
+import com.google.devtools.ksp.processing.KSPLogger
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.ParameterSpec
 import com.squareup.kotlinpoet.ParameterizedTypeName
 import com.squareup.kotlinpoet.STRING
 import com.squareup.kotlinpoet.TypeName
+import java.util.logging.Logger
 
-class SecondaryConstructorBuilder {
+class SecondaryConstructorBuilder(private val logger: KSPLogger) {
 
     operator fun invoke(
         modifiedStandardProps: List<IntentParam>,
@@ -21,18 +23,21 @@ class SecondaryConstructorBuilder {
             .forEach { (name, type, _, default) ->
                 val paramBuilder = ParameterSpec.builder(name, type)
                 // Only set default value if not "activity"
+                val defaultValue =
+                    resolveDefaultValue(
+                        type,
+                        default,
+                    )
+
+                logger.info("SecondaryConstructorBuilder: resolvedDefault $defaultValue")
+
                 if (name != "activity" && nonNullableParams.map { it.name }
-                        .contains(name).not()) {
-
-                    val param = if (type == STRING || type.toString()
-                            .startsWith("kotlin.String") || type.toString()
-                            .startsWith("kotlin.String?")
-                    ) "\"${default}\"" else default
-
-                    val defaultValue = resolveDefaultValue(type, param)
-
+                        .contains(name).not())
                     paramBuilder.defaultValue(defaultValue)
-                }
+                else if (default.isNotEmpty()) paramBuilder.defaultValue(
+                    defaultValue
+                )
+
                 secondaryCtor.addParameter(paramBuilder.build())
             }
         val codeBlock = CodeBlock.builder()

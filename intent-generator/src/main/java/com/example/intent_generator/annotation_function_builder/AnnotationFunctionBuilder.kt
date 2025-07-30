@@ -8,13 +8,14 @@ import com.squareup.kotlinpoet.BYTE
 import com.squareup.kotlinpoet.CHAR
 import com.squareup.kotlinpoet.DOUBLE
 import com.squareup.kotlinpoet.FLOAT
-import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.INT
 import com.squareup.kotlinpoet.LONG
 import com.squareup.kotlinpoet.ParameterizedTypeName
 import com.squareup.kotlinpoet.SHORT
 import com.squareup.kotlinpoet.STRING
 import com.squareup.kotlinpoet.TypeName
+import com.squareup.kotlinpoet.TypeSpec
+import kotlin.math.log
 
 class AnnotationFunctionBuilder(
     private val logger: KSPLogger,
@@ -22,9 +23,11 @@ class AnnotationFunctionBuilder(
     val className: String
 ) {
 
-    fun resolveDefaultValue(type: TypeName, default: String, from: String): String {
-        logger.warn("Present in resolveDefaultValue type $type == default $default from $from")
-        if (default.isNotEmpty() and default.isNotBlank()) return if (type == STRING || type == STRING.copy(nullable = true))
+    fun resolveDefaultValue(type: TypeName, default: String): String {
+        if (default.isNotEmpty() and default.isNotBlank()) return if (type == STRING || type == STRING.copy(
+                nullable = true
+            )
+        )
             "\"$default\""
         else default
         return when {
@@ -46,7 +49,7 @@ class AnnotationFunctionBuilder(
     fun companionBuilder(
         nonNullableParams: List<IntentParam>,
         resultCodeValue: Int
-    ) = CompanionBuilder().invoke(
+    ) = CompanionBuilder(logger).invoke(
         pkg = pkg,
         intentClassName = className,
         nonNullableParams = nonNullableParams,
@@ -60,8 +63,7 @@ class AnnotationFunctionBuilder(
         nonNullableParams: List<IntentParam>,
         nullableParams: List<IntentParam>,
         paramAnnotations: List<KSAnnotation>
-    ) = GetDataHandlerBuilder().invoke(
-        intentClassName = className,
+    ) = GetDataHandlerBuilder(pkg, className).invoke(
         resultCodeValue = resultCodeValue,
         standardProps = standardProps,
         nonNullableParams = nonNullableParams,
@@ -77,30 +79,29 @@ class AnnotationFunctionBuilder(
         params = paramAnnotations
     )
 
-    fun FileSpec.Builder.primaryConstructor(
+    fun primaryConstructor(
         modifiedStandardProps: List<IntentParam>,
         nonNullableParams: List<IntentParam>,
         nullableParams: List<IntentParam>,
-        resultCodeValue: Int
-    ) = with(PrimaryConstructorBuilder(pkg, className)) {
-        invoke(
-            modifiedStandardProps = modifiedStandardProps,
-            nonNullableParams = nonNullableParams,
-            nullableParams = nullableParams,
-            companionBuilder = CompanionBuilder(),
-            resultCodeValue = resultCodeValue,
-            resolveDefaultValue = ::resolveDefaultValue
-        )
-    }
+        resultCodeValue: Int,
+        typeSpecs: TypeSpec.Builder
+    ) = PrimaryConstructorBuilder(logger).invoke(
+        modifiedStandardProps = modifiedStandardProps,
+        nonNullableParams = nonNullableParams,
+        nullableParams = nullableParams,
+        resultCodeValue = resultCodeValue,
+        typeSpecs = typeSpecs,
+        resolveDefaultValue = ::resolveDefaultValue
+    )
 
-//    fun secondaryConstructorBuilder(
-//        modifiedStandardProps: List<IntentParam>,
-//        nonNullableParams: List<IntentParam>,
-//        nullableParams: List<IntentParam>
-//    ) = SecondaryConstructorBuilder().invoke(
-//        modifiedStandardProps = modifiedStandardProps,
-//        nonNullableParams = nonNullableParams,
-//        nullableParams = nullableParams,
-//        resolveDefaultValue = ::resolveDefaultValue
-//    )
+    fun secondaryConstructorBuilder(
+        modifiedStandardProps: List<IntentParam>,
+        nonNullableParams: List<IntentParam>,
+        nullableParams: List<IntentParam>
+    ) = SecondaryConstructorBuilder(logger).invoke(
+        modifiedStandardProps = modifiedStandardProps,
+        nonNullableParams = nonNullableParams,
+        nullableParams = nullableParams,
+        resolveDefaultValue = ::resolveDefaultValue
+    )
 }
