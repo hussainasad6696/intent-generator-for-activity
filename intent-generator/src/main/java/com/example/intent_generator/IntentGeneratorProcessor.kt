@@ -13,12 +13,9 @@ import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.squareup.kotlinpoet.BOOLEAN
 import com.squareup.kotlinpoet.ClassName
-import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FileSpec
-import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.INT
 import com.squareup.kotlinpoet.KModifier
-import com.squareup.kotlinpoet.ParameterSpec
 import com.squareup.kotlinpoet.ParameterizedTypeName
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.PropertySpec
@@ -105,7 +102,6 @@ class IntentProcessor(
                 type.rawType.parameterizedBy(typeArg)
             } else type
 
-//            name to finalType.copy(nullable = isNullable)
             IntentParam(name, finalType.copy(nullable = isNullable), isNullable, defaultValue)
         }
 
@@ -160,6 +156,24 @@ class IntentProcessor(
                                     typeSpecs = this@typeSpec
                                 )
                             )
+
+                            // Add nullable properties (default null)
+                            nullableParams.forEach { (name, type, _, defaultValue) ->
+                                val result = defaultValue.takeIf { it.isNotEmpty() }?.let {
+                                    annotationFunctionBuilder.resolveDefaultValue(type, it).also {
+                                        logger.info("Properties: resolvedDefault $it")
+                                    }
+                                }
+
+                                val newType = if (result != null) type.copy(nullable = false)
+                                else type
+
+                                val propertyBuilder = PropertySpec.builder(name, newType)
+                                    .initializer(result ?: "null")
+                                    .mutable()
+
+                                addProperty(propertyBuilder.build())
+                            }
 
                             addType(
                                 annotationFunctionBuilder.companionBuilder(

@@ -53,20 +53,6 @@ class PrimaryConstructorBuilder(private val logger: KSPLogger) {
                         .build()
                 )
             }
-
-            // Add nullable properties (default null)
-            nullableParams.forEach { (name, type, _, defaultValue) ->
-                typeSpecs.addProperty(
-                    PropertySpec.builder(name, type)
-                        .initializer(defaultValue.takeIf { it.isNotEmpty() }?.let {
-                            resolveDefaultValue(type, it).also {
-                                logger.info("Properties: resolvedDefault $it")
-                            }
-                        } ?: "null")
-                        .mutable(true)
-                        .build()
-                )
-            }
         }.build()
     }
 }

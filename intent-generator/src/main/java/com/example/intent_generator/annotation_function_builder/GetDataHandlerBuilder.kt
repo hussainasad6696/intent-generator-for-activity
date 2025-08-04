@@ -114,7 +114,9 @@ class GetDataHandlerBuilder(private val pkg: String, private val className: Stri
 
                     add(").apply {\n")
 
-                    nullableParams.forEach { (name, type) ->
+                    nullableParams.forEach { (name, type, _, default) ->
+                        val defaultType = if (default.isNotEmpty()) " ?: $default" else ""
+
                         val method = getReturnIntentType(name, type)
 
                         val statement = when {
@@ -144,7 +146,7 @@ class GetDataHandlerBuilder(private val pkg: String, private val className: Stri
                             else -> "intent?.$method(\"$name\")"
                         }
 
-                        addStatement("    this.%L = %L", name, statement)
+                        addStatement("    this.%L = %L", name, statement + defaultType)
                     }
 
                     add("}\n")

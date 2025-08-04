@@ -21,13 +21,18 @@ class SecondaryConstructorBuilder(private val logger: KSPLogger) {
         val secondaryCtor = FunSpec.constructorBuilder()
         (modifiedStandardProps + nonNullableParams + nullableParams)
             .forEach { (name, type, _, default) ->
-                val paramBuilder = ParameterSpec.builder(name, type)
-                // Only set default value if not "activity"
                 val defaultValue =
                     resolveDefaultValue(
                         type,
                         default,
                     )
+
+                val newType = if (defaultValue.isEmpty() or (defaultValue == "null")) type
+                else type.copy(nullable = false)
+
+                val paramBuilder = ParameterSpec.builder(name, newType)
+                // Only set default value if not "activity"
+
 
                 logger.info("SecondaryConstructorBuilder: resolvedDefault $defaultValue")
 

@@ -27,8 +27,7 @@ class AnnotationFunctionBuilder(
         if (default.isNotEmpty() and default.isNotBlank()) return if (type == STRING || type == STRING.copy(
                 nullable = true
             )
-        )
-            "\"$default\""
+        ) "\"$default\""
         else default
         return when {
             type.isNullable -> "null"
